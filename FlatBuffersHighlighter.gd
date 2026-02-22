@@ -149,8 +149,9 @@ func _clear_highlighting_cache ( ):
 
 	dict.clear()
 
-	for line_num in range( text_edit.get_line_count() ):
-		text_edit.set_line_background_color(line_num, Color(0,0,0,0) )
+	# FIXME This clears the backgrounds, but thats not entirely wanted.
+	#for line_num in range( text_edit.get_line_count() ):
+		#text_edit.set_line_background_color(line_num, Color(0,0,0,0) )
 
 	# clear types
 	parser.clear_cache()
@@ -165,6 +166,9 @@ func _get_line_syntax_highlighting(line_num: int) -> Dictionary:
 		plugin.print_log(LogLevel.TRACE, "[b]_get_line_syntax_highlighting( line_num:%d )[/b]" % [line_num+1])
 
 	var text_edit:TextEdit = get_text_edit()
+
+	# Reset line highlighting for this line
+	text_edit.set_line_background_color(line_num, Color(0,0,0,0))
 
 	# Quick scan once
 	if not parser.has_performed_quick_scan:
@@ -182,7 +186,6 @@ func _get_line_syntax_highlighting(line_num: int) -> Dictionary:
 	var result: Dictionary = parser.parse_line(line_num, line)
 	parser.active_highlighter = null
 
-	text_edit.set_line_background_color(line_num, Color(0,0,0,0))
 	return result
 
 
@@ -210,8 +213,10 @@ func                        _________METHODS_________              ()->void:pass
 
 func highlight( token:Token ):
 	line_dict[token.col] = { 'color':plugin.get_colour( token.type ) }
+	line_dict[token.col + token.t.length()] = {}
 	if not (parser.error_flag or parser.warning_flag):
 		get_text_edit().set_line_background_color(token.line, Color(0,0,0,0) )
+
 
 func highlight_colour( token:Token, colour:Color ):
 	line_dict[token.col] = { 'color':colour }
