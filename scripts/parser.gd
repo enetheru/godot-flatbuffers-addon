@@ -129,13 +129,10 @@ func _init(plugin_ref: FlatBuffersPlugin = null):
 
 	scalar_types = integer_types + float_types + boolean_types
 	reader = Reader.new(self)
+
 	# This saves us from having to highlight everything manually.
-	reader.new_token.connect(func( token:Token ):
-		highlight( token )
-		if plugin.log_level(LogLevel.TRACE):
-			var colour = plugin.get_colour(token.type).to_html()
-			print_rich( lpad() + "\t[color=%s]%s[/color]" % [colour, token] )
-	)
+	reader.new_token.connect(highlight)
+
 	reader.newline.connect( func(l,p):
 		if error_flag: return
 		save_stack(l, 0)
@@ -212,6 +209,9 @@ func                        _______HIGHLIGHTER_______              ()->void:pass
 
 func highlight(token: Token):
 	active_highlighter.highlight(token)
+	if plugin.log_level(LogLevel.TRACE):
+		var colour = plugin.get_colour(token.type).to_html()
+		print_rich( lpad() + "\t[color=%s]%s[/color]" % [colour, token] )
 
 
 func highlight_colour(token: Token, colour:Color):
