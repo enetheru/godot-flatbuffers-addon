@@ -1,5 +1,7 @@
-const Token = preload('res://addons/gdflatbuffers/scripts/token.gd')
-const REGEX = preload('res://addons/gdflatbuffers/scripts/regex.gd')
+
+const Token = preload('uid://cvcd6kyaa4f1a')
+const REGEX = preload('uid://btk3lhtry00ct')
+
 static var Regex :
 	get():
 		if Regex == null: Regex = REGEX.new()

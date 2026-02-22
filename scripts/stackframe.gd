@@ -4,7 +4,6 @@
 # ██    ██ ██   ██ ██   ██ ██  ██  ██ ██  ██  ██ ██   ██ ██   ██
 #  ██████  ██   ██ ██   ██ ██      ██ ██      ██ ██   ██ ██   ██
 
-const Stackframe = preload('res://addons/gdflatbuffers/scripts/stackframe.gd')
 
 enum Type {
 	NONE, # so that SCHEMA isnt at zero which is conflated with bool

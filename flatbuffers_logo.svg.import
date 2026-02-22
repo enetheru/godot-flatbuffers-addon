@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://djn0qm2ewvf7d"
-path="res://.godot/imported/fpl_logo_small.png-48074d5aad8414f0dc2de45070fe4549.ctex"
+uid="uid://cx0lnnaxt4hod"
+path="res://.godot/imported/flatbuffers_logo.svg-3cf7b26a7d6c0a38d6738a4010a3ee2d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/enetheru.flatbuffers-addon/fpl_logo_small.png"
-dest_files=["res://.godot/imported/fpl_logo_small.png-48074d5aad8414f0dc2de45070fe4549.ctex"]
+source_file="res://addons/enetheru.flatbuffers-addon/flatbuffers_logo.svg"
+dest_files=["res://.godot/imported/flatbuffers_logo.svg-3cf7b26a7d6c0a38d6738a4010a3ee2d.ctex"]
 
 [params]
 
@@ -38,3 +38,6 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
+svg/scale=1.0
+editor/scale_with_editor_scale=false
+editor/convert_colors_with_editor_theme=false

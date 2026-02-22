@@ -11,7 +11,7 @@ func                        _________IMPORTS_________              ()->void:pass
 
 const Reader = preload('uid://cupdfm2aikswa')
 const Token = preload('uid://cvcd6kyaa4f1a')
-const Framestack = preload('uid://d3cyn1bbenwmo')
+const FrameStack = preload('uid://d3cyn1bbenwmo')
 const StackFrame = preload('uid://c0ub8clj4bhhv')
 const FlatBuffersHighlighter = preload('uid://ddcfjoxe7i5jo')
 

@@ -14,10 +14,10 @@ extends EditorSyntaxHighlighter
 func                        _________IMPORTS_________              ()->void:pass
 
 # Supporting Scripts
-const Token = preload('res://addons/gdflatbuffers/scripts/token.gd')
-const Tips = preload('res://addons/gdflatbuffers/scripts/tooltips.gd')
-const StackFrame = preload('res://addons/gdflatbuffers/scripts/stackframe.gd')
-const FrameStack = preload('res://addons/gdflatbuffers/scripts/framestack.gd')
+const Token = preload('uid://cvcd6kyaa4f1a')
+const Tips = preload('uid://d03rmh07bwicj')
+const StackFrame = preload('uid://c0ub8clj4bhhv')
+const FrameStack = preload('uid://d3cyn1bbenwmo')
 
 const LogLevel = FlatBuffersPlugin.LogLevel
 

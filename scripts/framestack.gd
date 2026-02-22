@@ -1,6 +1,6 @@
 class_name FrameStack
 
-const StackFrame = preload('res://addons/gdflatbuffers/scripts/stackframe.gd')
+const StackFrame = preload('uid://c0ub8clj4bhhv')
 
 var _capacity : int
 var _top : int = -1
