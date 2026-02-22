@@ -179,10 +179,6 @@ func _sync_constants_from_plugin():
 
 # ── File Helper ────────────────────────────────
 func check_include_file(file_path: String) -> String:
-	if not file_path.is_valid_filename():
-		plugin.print_log(LogLevel.ERROR, "Invalid filename: '%s'" % file_path )
-		return ""
-
 	if file_path == "godot.fbs":
 		file_path = FlatBuffersPlugin.plugin_path + "/godot.fbs"
 
