@@ -19,6 +19,11 @@ const Token = preload('scripts/token.gd')
 # Supporting Assets
 const ICON_BW_TINY = preload('fpl_logo_tiny_bw.png')
 
+const author:String = "enetheru"
+const PluginName:String = "FlatBuffers"
+const plugin_name:String = "flatbuffers"
+const plugin_path:String = "res://addons/" + author + "." + plugin_name + '-addon'
+
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
 # ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
@@ -46,7 +51,7 @@ var debug:bool = true
 # ╰───────────────────────────────────
 @export_custom( PROPERTY_HINT_GLOBAL_FILE, "*.exe",
 	PROPERTY_USAGE_EDITOR_BASIC_SETTING | PROPERTY_USAGE_GROUP)
-var flatc_exe:String = "addons/gdflatbuffers/bin/flatc.exe"
+var flatc_exe:String = "addons/%s.%s/bin/flatc.exe" % [author, plugin_name]
 
 @export_custom( PROPERTY_HINT_NONE, "",
 	PROPERTY_USAGE_EDITOR_BASIC_SETTING | PROPERTY_USAGE_GROUP)
@@ -139,12 +144,12 @@ func                        ________OVERRIDES________              ()->void:pass
 
 func _init() -> void:
 	_prime = self
-	name = "FlatBuffersPlugin"
+	name = PluginName
 
 
 	#FIXME update editor property docks/filesystem/textfile_extensions to include fbs
 
-	settings_mgr = SettingsHelper.new(self, "plugin/gdflatbuffers")
+	settings_mgr = SettingsHelper.new(self, "plugin/%s" % plugin_name)
 
 	context_menus = {
 		EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM: MyFileMenu.new(),
@@ -184,7 +189,7 @@ func _exit_tree() -> void:
 
 func _get_plugin_name() -> String:
 	print_log( LogLevel.TRACE, "%s._get_plugin_name()" % name )
-	return "flatbuffers"
+	return plugin_name
 
 
 func _get_plugin_icon() -> Texture2D:
@@ -259,7 +264,7 @@ func flatc_generate( schema_path:String, args:Array ) -> Dictionary:
 		args.append("--gen-object-api")
 	# -I <path>                Search for includes in the specified path.
 	#var dir_access := DirAccess.open("res://")
-	for ipath in flatc_include_paths + ["res://addons/gdflatbuffers/"]:
+	for ipath in flatc_include_paths + [plugin_path]:
 		if not DirAccess.dir_exists_absolute(ipath):
 			push_warning("invalid include path: '%s'" % ipath)
 			continue
