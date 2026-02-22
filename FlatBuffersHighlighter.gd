@@ -197,7 +197,7 @@ func _update_cache():
 	if not text_edit.lines_edited_from.is_connected( _on_lines_edited_from ):
 		text_edit.lines_edited_from.connect( _on_lines_edited_from )
 
-	parser.quick_scan_text( text_edit.text )
+	parser.quick_scan( text_edit.text )
 
 	text_edit.set_tooltip_request_func( func( word ):
 		var tip = Tips.keywords.get(word)

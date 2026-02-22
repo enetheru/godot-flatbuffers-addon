@@ -37,6 +37,8 @@ var enum_types:   Dictionary = {}       # StringName → Array[StringName]
 
 # ── Include handling (will be improved later) ────────────────────────────────
 var included_files: Array[String] = []
+var scanned_files: Array[String] = []
+var scan_pending: Array[String] = []
 
 # ── Incremental parsing state ────────────────────────
 var max_stack_size:int = 100
@@ -150,6 +152,7 @@ func clear_cache() -> void:
 	error_flag = false
 	warning_flag = false
 	included_files.clear()
+	scanned_files.clear()
 	struct_types.clear()
 	table_types.clear()
 	union_types.clear()
@@ -175,21 +178,23 @@ func _sync_constants_from_plugin():
 
 
 # ── File Helper ────────────────────────────────
-func using_file(file_path: String) -> String:
+func check_include_file(file_path: String) -> String:
 	if not file_path.is_valid_filename():
 		plugin.print_log(LogLevel.ERROR, "Invalid filename: '%s'" % file_path )
 		return ""
 
 	if file_path == "godot.fbs":
-		file_path = 'res://addons/gdflatbuffers/godot.fbs'
+		file_path = FlatBuffersPlugin.plugin_path + "/godot.fbs"
 
 	if FileAccess.file_exists(file_path):
+		plugin.print_log(LogLevel.TRACE, "Located file: '%s'" % file_path)
 		return file_path
 
 	if file_path.is_absolute_path():
+		plugin.print_log(LogLevel.ERROR, "CheckInclude: Unable to locate file: '%s'" % file_path)
 		return ""
 
-	plugin.print_log( LogLevel.DEBUG, "Search Locations: %s" % [plugin.flatc_include_paths])
+	plugin.print_log( LogLevel.TRACE, "Searching Locations: %s" % [plugin.flatc_include_paths])
 	for ipath: String in plugin.flatc_include_paths:
 		var try_path = ipath.path_join(file_path)
 		if FileAccess.file_exists(try_path):
@@ -352,21 +357,40 @@ func error_frame( token:Token, message: String ):
 #     ▀▀                                                                       #
 func                       ________QUICK_SCAN_______               ()->void:pass
 
-# ── Public: reset & scan the whole document for types ────────────────────────
-func quick_scan_text(full_text: String) -> void:
-	plugin.print_log( LogLevel.DEBUG, "[b]quick_scan_text[/b]")
+func quick_scan(full_text: String) -> void:
 	if is_quick_scan_in_progress:
-		# Optional: could push a warning or just return silently
-		print_rich("[color=orange]Quick scan already in progress — skipping nested call[/color]")
+		plugin.print_log( LogLevel.WARNING, "QuickScanText: already in progress — skipping nested call")
 		return
 	is_quick_scan_in_progress = true
 
-	struct_types.clear()
-	table_types.clear()
-	union_types.clear()
-	enum_types.clear()
-	included_files.clear()
+	plugin.print_log( LogLevel.DEBUG, "[b]quick_scan[/b]")
+	quick_scan_text(full_text)
 
+	while scan_pending.size() > 0:
+		var file_path:String = scan_pending.pop_front()
+		plugin.print_log( LogLevel.DEBUG, "Scanning: '%s'" % file_path)
+
+		# Dont create a loop
+		if file_path in scanned_files:
+			plugin.print_log( LogLevel.TRACE, "File already scanned" )
+			continue
+
+		var file:FileAccess = FileAccess.open(file_path, FileAccess.READ)
+		if not file:
+			plugin.print_log( LogLevel.ERROR, "QuickScan: Unable to open file for scanning.")
+			continue
+
+		var content:String = file.get_as_text()
+
+		quick_scan_text(content)
+		scanned_files.append(file_path)
+
+	is_quick_scan_in_progress = false
+	has_performed_quick_scan = true
+
+
+# ── Public: reset & scan the whole document for types ────────────────────────
+func quick_scan_text(full_text: String) -> void:
 	var qreader := Reader.new(self)   # note: still passes self as parent for now
 	qreader.reset(full_text)
 
@@ -386,15 +410,20 @@ func quick_scan_text(full_text: String) -> void:
 			plugin.print_log(LogLevel.TRACE, "include %s" % token.t)
 			# Strip quotes from token
 			var file_path = token.t.substr(1, token.t.length() - 2)
-			# validate the file
-			file_path = using_file(file_path)
-			# Scan the file
-			if file_path and file_path not in included_files:
-				plugin.print_log( LogLevel.DEBUG, "Including file: %s" % file_path )
-				included_files.append(file_path)
-				quick_scan_file(file_path)
-			else: plugin.print_log(LogLevel.ERROR, "Invalid path: %s" % file_path)
+			var checked_path:String = check_include_file(file_path)
+
+			if checked_path.is_empty():
+				plugin.print_log( LogLevel.ERROR, "QuickScanText: Unable to locate file: '%s'" % file_path )
+				reader.adv_token(token)
+			elif checked_path in included_files:
+				plugin.print_log( LogLevel.TRACE, "File already included: '%s'" % checked_path )
+			else:
+				# Scan the file if we havent already
+				plugin.print_log( LogLevel.DEBUG, "Including file: %s" % checked_path )
+				included_files.append(checked_path)
+				scan_pending.append(checked_path)
 			continue
+
 
 		if token.t in ['struct', 'table', 'union']:
 			var ident = qreader.get_token()
@@ -426,28 +455,31 @@ func quick_scan_text(full_text: String) -> void:
 
 		qreader.adv_line()
 
-	is_quick_scan_in_progress = false
-	has_performed_quick_scan = true
-
 
 func quick_scan_file(file_path: String) -> bool:
 	plugin.print_log( LogLevel.DEBUG, "[b]quick_scan_file: '%s'[/b]" % file_path)
 
 	if not FileAccess.file_exists( file_path ):
-		if plugin.print_log( LogLevel.ERROR,"Unable to locate file for inclusion: %s" % file_path):
-			if file_path.is_relative_path():
-				plugin.print_log( LogLevel.WARNING, "Relative Paths are only relative to project root, not their own location.")
+		plugin.print_log( LogLevel.ERROR,"QuickScan: Unable to locate file for inclusion: %s" % file_path)
 		return false
 
-	if file_path in included_files:
-		return true # Dont create a loop
+	# Dont create a loop
+	if file_path in scanned_files:
+		plugin.print_log( LogLevel.TRACE, "File already scanned" )
+		return true
+
+	if is_quick_scan_in_progress:
+		scan_pending.append(file_path)
+		return true
 
 	var file:FileAccess = FileAccess.open(file_path, FileAccess.READ)
 	if not file:
+		plugin.print_log( LogLevel.ERROR, "QuickScan: Unable to open file for scanning.")
 		return false
-	var content:String = file.get_as_text()
 
-	quick_scan_text(content)          # recursive call — safe because of included_files check
+	var content:String = file.get_as_text()
+	scanned_files.append(file_path)
+	quick_scan(content)
 	return true
 
 
@@ -594,17 +626,17 @@ func parse_include( p_token:Token ):
 	token = reader.get_token()
 	if check_token_type(token, Token.Type.STRING ):
 		var file_path: String = token.t.substr(1, token.t.length() -2)
-		file_path = using_file(file_path)
+		var checked_path:String = check_include_file(file_path)
 
-		# Scan the file
-		if file_path:
-			if file_path not in included_files:
-				# FIXME, change this to a warning about a file that was not caught in the quickscan.
-				#STUB plugin.print_log( LogLevel.DEBUG, "Including file: %s" % filepath )
-				included_files.append(file_path)
-				quick_scan_file(file_path)
+		if checked_path.is_empty():
+			syntax_error( token, "ParseInclude: Unable to locate file: '%s'" % file_path)
+		elif checked_path in included_files:
+			plugin.print_log( LogLevel.TRACE, "File already included: '%s'" % checked_path )
 		else:
-			syntax_error(token, "Unable to locate file: %s" % file_path )
+			plugin.print_log( LogLevel.WARNING, "File was not picked up in quick_scan: '%s'" % checked_path )
+			# Scan the file
+			included_files.append(checked_path)
+			quick_scan_file(checked_path)
 
 	token = reader.get_token()
 	check_token_t(token, &";")
