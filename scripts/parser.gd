@@ -179,8 +179,11 @@ func _sync_constants_from_plugin():
 
 # ── File Helper ────────────────────────────────
 func check_include_file(file_path: String) -> String:
+	var plugin_script:Resource = FlatBuffersPlugin
+	var plugin_path = plugin_script.resource_path.get_base_dir()
+
 	if file_path == "godot.fbs":
-		file_path = FlatBuffersPlugin.plugin_path + "/godot.fbs"
+		file_path = plugin_path + "/godot.fbs"
 
 	if FileAccess.file_exists(file_path):
 		plugin.print_log(LogLevel.TRACE, "Located file: '%s'" % file_path)
@@ -190,8 +193,9 @@ func check_include_file(file_path: String) -> String:
 		plugin.print_log(LogLevel.ERROR, "CheckInclude: Unable to locate file: '%s'" % file_path)
 		return ""
 
-	plugin.print_log( LogLevel.TRACE, "Searching Locations: %s" % [plugin.flatc_include_paths])
-	for ipath: String in plugin.flatc_include_paths:
+	var include_paths:Array = plugin.flatc_cmdline_options.get_include_paths()
+	plugin.print_log( LogLevel.TRACE, "Searching Locations: %s" % [include_paths])
+	for ipath: String in include_paths:
 		var try_path = ipath.path_join(file_path)
 		if FileAccess.file_exists(try_path):
 			plugin.print_log(LogLevel.DEBUG, "Found: '%s'" % try_path)

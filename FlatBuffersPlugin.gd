@@ -12,6 +12,8 @@ func                        _________IMPORTS_________              ()->void:pass
 const SettingsHelper = preload('uid://bqe6tk0yrwq8u')
 var settings_mgr:SettingsHelper
 
+const GenOpts = preload('uid://bf5ukybn2h3kd')
+
 # Supporting Scripts
 const FlatbufferSchemaHighlighter = preload('FlatBuffersHighlighter.gd')
 const Token = preload('scripts/token.gd')
@@ -22,8 +24,8 @@ const ICON_BW_TINY = preload('fpl_logo_tiny_bw.png')
 const author:String = "enetheru"
 const PluginName:String = "FlatBuffers"
 const plugin_name:String = "flatbuffers"
-const plugin_path:String = "res://addons/" + author + "." + plugin_name + '-addon'
-
+#const plugin_path:String = "res://addons/" + author + "." + plugin_name + '-addon'
+# we can get the plugin path using its resource_path.get_base_dir() anytime.
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
 # ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
@@ -38,9 +40,9 @@ static var _prime:FlatBuffersPlugin
 var highlighter:EditorSyntaxHighlighter
 var context_menus:Dictionary[EditorContextMenuPlugin.ContextMenuSlot,EditorContextMenuPlugin]
 
+
+@export_custom( PROPERTY_HINT_NONE, "", SettingsHelper.SETTING_BASIC)
 ## A variable to help me turn on and off debug features and tests.
-@export_custom( PROPERTY_HINT_NONE, "",
-	PROPERTY_USAGE_EDITOR_BASIC_SETTING | PROPERTY_USAGE_INTERNAL)
 var debug:bool = true
 
 
@@ -49,21 +51,9 @@ var debug:bool = true
 # │|  _| / _` |  _/ _|_/ -_) \ / -_)
 # │|_| |_\__,_|\__\__(_)___/_\_\___|
 # ╰───────────────────────────────────
-@export_custom( PROPERTY_HINT_GLOBAL_FILE, "*.exe",
-	PROPERTY_USAGE_EDITOR_BASIC_SETTING | PROPERTY_USAGE_GROUP)
-var flatc_exe:String = "addons/%s.%s/bin/flatc.exe" % [author, plugin_name]
+@export_custom( PROPERTY_HINT_RESOURCE_TYPE, "", SettingsHelper.SETTING_BASIC_SUB)
+var flatc_cmdline_options:GenOpts = GenOpts.new()
 
-@export_custom( PROPERTY_HINT_NONE, "",
-	PROPERTY_USAGE_EDITOR_BASIC_SETTING | PROPERTY_USAGE_GROUP)
-var flatc_generate_debug:bool = false
-
-@export_custom( PROPERTY_HINT_NONE, "",
-	PROPERTY_USAGE_EDITOR_BASIC_SETTING | PROPERTY_USAGE_GROUP)
-var flatc_generate_pack_unpack:bool = false
-
-## Include paths to use for flatc generation
-@export_custom( PROPERTY_HINT_TYPE_STRING, "4/16:", PROPERTY_USAGE_EDITOR_BASIC_SETTING | PROPERTY_USAGE_GROUP)
-var flatc_include_paths: Array[String]
 
 # │ ___    _ _ _           _
 # │| __|__| (_) |_ ___ _ _| |   ___  __ _
@@ -246,6 +236,7 @@ func flatc_multi( paths:Array, args:Array ) -> Array:
 
 func flatc_generate( schema_path:String, args:Array ) -> Dictionary:
 	print_log( LogLevel.TRACE, "%s.flatc_generate(%s, %s)" % [name, schema_path, args] )
+	var flatc_exe:String = flatc_cmdline_options.flatc_exe
 	# Make sure we have the flac compiler
 	if not FileAccess.file_exists(flatc_exe):
 		var msg = "flatc compiler is not found at '%s'" % flatc_exe
@@ -257,23 +248,13 @@ func flatc_generate( schema_path:String, args:Array ) -> Dictionary:
 		push_error(msg)
 		return {'retcode':ERR_FILE_BAD_PATH, 'output': [msg] }
 
-	# flatc_generate_debug
-	if flatc_generate_debug:
-		args.append("--gdscript-debug")
-	if flatc_generate_pack_unpack:
-		args.append("--gen-object-api")
-	# -I <path>                Search for includes in the specified path.
-	#var dir_access := DirAccess.open("res://")
-	for ipath in flatc_include_paths + [plugin_path]:
-		if not DirAccess.dir_exists_absolute(ipath):
-			push_warning("invalid include path: '%s'" % ipath)
-			continue
-		args.append_array(["-I", ipath.replace('res://', './')])
+	args.append_array(flatc_cmdline_options.get_opts())
 
 	# -o <path>
-	args.append_array([ "-o", schema_path.get_base_dir().replace('res://', './')])
+	if not '-o' in args:
+		args.append_array([ "-o", schema_path.get_base_dir().replace('res://', './')])
 
-	# the schema path
+	# Lastly add the schema path
 	args.append( schema_path.replace('res://', './') )
 
 	var report:Dictionary = {
@@ -310,6 +291,10 @@ func flatc_generate( schema_path:String, args:Array ) -> Dictionary:
 	# This line refreshes the filesystem dock.
 	if not retcode: EditorInterface.get_resource_filesystem().scan()
 	return report
+
+
+static func generate( schema_path:String, args:Array ) -> Dictionary:
+	return _prime.flatc_generate( schema_path, args  )
 
 
 # ██████  ██  ██████  ██   ██ ████████      ██████ ██      ██  ██████ ██   ██  #

@@ -1,13 +1,13 @@
 @tool
 
-## │ ___      _   _   _                _  _     _                 [br]
-## │/ __| ___| |_| |_(_)_ _  __ _ ___ | || |___| |_ __  ___ _ _   [br]
-## │\__ \/ -_)  _|  _| | ' \/ _` (_-< | __ / -_) | '_ \/ -_) '_|  [br]
-## │|___/\___|\__|\__|_|_||_\__, /__/ |_||_\___|_| .__/\___|_|    [br]
-## ╰────────────────────────|___/────────────────|_|──────────────[br]
+## │ ___      _   _   _                _  _     _                  [br]
+## │/ __| ___| |_| |_(_)_ _  __ _ ___ | || |___| |_ __  ___ _ _    [br]
+## │\__ \/ -_)  _|  _| | ' \/ _` (_-< | __ / -_) | '_ \/ -_) '_|   [br]
+## │|___/\___|\__|\__|_|_||_\__, /__/ |_||_\___|_| .__/\___|_|     [br]
+## ╰────────────────────────|___/────────────────|_|────────────── [br]
 ## This class saves me from writing so much boilerplate for creating editor
-## settings for the editor plugins I wish to write.[br]
-## [br]
+## settings for the editor plugins I wish to write.
+##
 ## The class looks for custom exported properties with
 ## [code]PROPERTY_USAGE_EDITOR_BASIC_SETTING[/code] and exposes them as
 ## editor_settings.[br]
@@ -76,6 +76,18 @@
 ## [br]
 ## 09/02/2026 12:58am ACT+930 - re-added the signal for when a
 ## setting changes and updated documentation[br]
+## 024/02/2026 2:45am ACT+930 - added consts for property usage, clarification
+## for the abuse of PROPERTY_USAGE flags, and the link below which might come
+## in handy[br]
+
+## Link for adding documentation tooltips to settings.
+## very brute force.
+## https://github.com/PiCode9560/Godot-Editor-Settings-Description/blob/main/editor_settings_description.gd
+
+const SETTING_BASIC = (PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_EDITOR_BASIC_SETTING)
+const SETTING_BASIC_SUB = (SETTING_BASIC | PROPERTY_USAGE_GROUP)
+const SETTING_BASIC_SUB2 = (SETTING_BASIC | PROPERTY_USAGE_SUBGROUP)
+
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
 # ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
@@ -158,7 +170,11 @@ func                        _________METHODS_________              ()->void:pass
 ## Add all the properties as settings
 func add_properties_to_settings() -> void:
 	for property : Dictionary in _target.get_property_list():
-		if not (property.usage & PROPERTY_USAGE_EDITOR_BASIC_SETTING): continue
+		# We're abusing the property usage here, but custom settings are always
+		# considered advanced so this flag isnt necessarily used for any other
+		# purpose at this time.
+		if not (property.usage & PROPERTY_USAGE_EDITOR_BASIC_SETTING):
+			continue
 
 		var prop_name : StringName = property.get(&'name')
 		var setting_name : StringName = _prefix
@@ -184,7 +200,6 @@ func add_properties_to_settings() -> void:
 		if not editor_settings.has_setting(setting_name):
 			editor_settings.set_setting( setting_name, initial_value )
 			editor_settings.set_initial_value(setting_name, initial_value, true)
-			#editor_settings.mark_setting_changed(setting_info.name)
 		# Incase our plugin has changed, update the setting
 		editor_settings.set_initial_value(setting_name, initial_value, false)
 		editor_settings.add_property_info(setting)
