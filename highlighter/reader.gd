@@ -1,4 +1,4 @@
-
+const Parser = preload("uid://dsj2eh2lfm2sg")
 const Token = preload('uid://cvcd6kyaa4f1a')
 const REGEX = preload('uid://btk3lhtry00ct')
 
@@ -39,7 +39,7 @@ signal endfile( ln, p )
 
 ## The parent object is where the reader draws some information from
 ## If I can I should move as much out of the reader into the "parent" as possible
-var parser:FlatBuffersParser
+var parser:Parser
 
 ## A list of word separation characters
 var word_separation : Array = [' ', '\t', '\n', '{','}', ':', ';', ',','=',
@@ -69,7 +69,7 @@ var line_n : int = 0
 ## When updating chunks of a larger source file, what line does this chunk start on.
 var line_start : int
 
-func _init( parser_ref:FlatBuffersParser ) -> void:
+func _init( parser_ref:Parser ) -> void:
 	if parser_ref:
 		parser = parser_ref
 	if not Regex: Regex = REGEX.new()

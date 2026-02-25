@@ -1,5 +1,5 @@
-class_name FrameStack
 
+const Self = preload("uid://d3cyn1bbenwmo")
 const StackFrame = preload('uid://c0ub8clj4bhhv')
 
 var _capacity : int
@@ -40,7 +40,7 @@ func is_full():
 	return _top == _capacity -1
 
 
-func duplicate( deep : bool ) -> FrameStack:
+func duplicate( deep : bool ) -> Self:
 	var new_stack = new(_capacity)
 	new_stack._top = _top
 	for i in range(_top+1):

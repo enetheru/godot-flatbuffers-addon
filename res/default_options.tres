@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="FlatBuffersPluginOpts" load_steps=2 format=3 uid="uid://btp0s7qy88o36"]
+
+[ext_resource type="Script" uid="uid://dx0weow7g6o44" path="res://addons/enetheru.flatbuffers-addon/scripts/FlatBuffersOpts.gd" id="1_e4pq5"]
+
+[resource]
+resource_name = "Default Flatbuffers Plugin Options"
+script = ExtResource("1_e4pq5")
+color_syntax_unknown = Color(0.8025, 0.81, 0.8225, 1)
+color_syntax_comment = Color(0.8025, 0.81, 0.8225, 0.5)
+color_syntax_keyword = Color(1, 0.44, 0.52, 1)
+color_syntax_type = Color(0.26, 1, 0.76, 1)
+color_syntax_string = Color(1, 0.93, 0.63, 1)
+color_syntax_punct = Color(0.8025, 0.81, 0.8225, 1)
+color_syntax_ident = Color(0.67, 0.79, 1, 1)
+color_syntax_scalar = Color(0.63, 1, 0.88, 1)
+color_syntax_meta = Color(0.8025, 0.81, 0.8225, 1)
+color_notice_critical = Color(0.77, 0.35, 0.35, 1)
+color_notice_error = Color(0.77, 0.35, 0.35, 1)
+color_notice_warning = Color(0.72, 0.61, 0.48, 1)
+color_notice_notice = Color(0.8025, 0.81, 0.8225, 1)
+color_notice_debug = Color(0.8025, 0.81, 0.8225, 0.5)
+color_notice_trace = Color(0.8025, 0.81, 0.8225, 0.5)
+metadata/_custom_type_script = "uid://dx0weow7g6o44"

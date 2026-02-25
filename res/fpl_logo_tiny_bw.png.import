@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://djn0qm2ewvf7d"
-path="res://.godot/imported/fpl_logo_small.png-48074d5aad8414f0dc2de45070fe4549.ctex"
+uid="uid://d32jh3dw5nypp"
+path="res://.godot/imported/fpl_logo_tiny_bw.png-d444777d85c5281f6bc08c0e9a3cdc20.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/enetheru.flatbuffers-addon/fpl_logo_small.png"
-dest_files=["res://.godot/imported/fpl_logo_small.png-48074d5aad8414f0dc2de45070fe4549.ctex"]
+source_file="res://addons/enetheru.flatbuffers-addon/res/fpl_logo_tiny_bw.png"
+dest_files=["res://.godot/imported/fpl_logo_tiny_bw.png-d444777d85c5281f6bc08c0e9a3cdc20.ctex"]
 
 [params]
 

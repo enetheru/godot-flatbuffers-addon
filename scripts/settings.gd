@@ -25,7 +25,7 @@
 ## [b]== Examples ==[/b][br]
 ## [codeblock]
 ## @export_custom( PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR_BASIC_SETTING)
-## var example : bool
+## var example:bool
 ## [/codeblock]
 ## [br]
 ## To facilitate grouping of settings, add the [code]PROPERTY_USAGE_GROUP[/code]
@@ -35,7 +35,7 @@
 ## [codeblock]
 ## @export_custom( PROPERTY_HINT_NONE, "",
 ##	PROPERTY_USAGE_EDITOR_BASIC_SETTING | PROPERTY_USAGE_SUBGROUP)
-## var group_subgroup_example : bool
+## var group_subgroup_example:bool
 ## [/codeblock]
 ## [br]
 ## Not all property hints work, as there is not a 1:1 relationship between the
@@ -76,9 +76,13 @@
 ## [br]
 ## 09/02/2026 12:58am ACT+930 - re-added the signal for when a
 ## setting changes and updated documentation[br]
-## 024/02/2026 2:45am ACT+930 - added consts for property usage, clarification
+## 24/02/2026 2:45am ACT+930 - added consts for property usage, clarification
 ## for the abuse of PROPERTY_USAGE flags, and the link below which might come
 ## in handy[br]
+## removed the erase on exit, seemed buggy and prone to wipe my editor-settings
+## entirely[br]
+## Compared this script to the similar one from editor-tweaks, and merged some
+## differences, button code, enabled_plugins,
 
 ## Link for adding documentation tooltips to settings.
 ## very brute force.
@@ -96,10 +100,13 @@ const SETTING_BASIC_SUB2 = (SETTING_BASIC | PROPERTY_USAGE_SUBGROUP)
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-var editor_settings : EditorSettings
+static var editor_settings:EditorSettings :
+	get(): return EditorInterface.get_editor_settings()
 
-var _prefix : String
-var _target : EditorPlugin
+var _prefix:String
+var _target:EditorPlugin
+
+var helper_group:StringName = &"settings-helper"
 
 signal settings_changed( setting_name:StringName, value:Variant )
 
@@ -111,15 +118,14 @@ signal settings_changed( setting_name:StringName, value:Variant )
 func                        __________EVENTS_________              ()->void:pass
 
 func _on_editor_settings_changed() -> void:
-
 	for setting_name in editor_settings.get_changed_settings():
 		if not setting_name.begins_with(_prefix): continue
 		if setting_name.begins_with(_prefix.path_join(&"built-in")): continue
-		var prop_val : Variant = editor_settings.get(setting_name)
-		var prop_name : StringName = setting_name.trim_prefix(_prefix+ "/").replace('/', '_')
+		var prop_val:Variant = editor_settings.get(setting_name)
+		var prop_name:StringName = setting_name.trim_prefix(_prefix+ "/").replace('/', '_')
 		# try to set the target object property value.
 		if prop_name in _target.get_property_list().reduce(
-			func( prop_names : Array, prop_dict : Dictionary ) -> Array:
+			func( prop_names:Array, prop_dict:Dictionary ) -> Array:
 				prop_names.append(prop_dict.name); return prop_names, [] ):
 					_target.set( prop_name, prop_val )
 		else:
@@ -130,10 +136,22 @@ func _on_editor_settings_changed() -> void:
 
 func _on_target_tree_exiting() -> void:
 	editor_settings.settings_changed.disconnect( _on_editor_settings_changed )
-	var erase_when_exit := _prefix.path_join('erase_when_exit')
-	if editor_settings.has_setting( erase_when_exit ) \
-		and editor_settings.get_setting( erase_when_exit ):
-			erase_settings_in_prefix()
+
+
+func _on_rebuild_pressed() -> void:
+	print( "Rebuilding Settings in '%s'" % _prefix )
+	erase_prefix( _prefix )
+	add_target_properties()
+	#add_helper_properties()
+
+
+func _on_erase_pressed() -> void:
+	print( "Erasing Settings in '%s'" % _prefix )
+	erase_prefix( _prefix )
+
+
+func _on_unload_pressed() -> void:
+	print("TODO implement plugin unload button.")
 
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
@@ -143,21 +161,17 @@ func _on_target_tree_exiting() -> void:
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
-func _init( target : EditorPlugin, prefix : String = "" )-> void:
-	print("Starting Settings Class")
+func _init( target:EditorPlugin, prefix:String = "plugin/un-named" )-> void:
 	_prefix = prefix
 	_target = target
-
-	editor_settings = EditorInterface.get_editor_settings()
 
 	@warning_ignore_start('return_value_discarded')
 	_target.tree_exiting.connect( _on_target_tree_exiting, CONNECT_ONE_SHOT )
 	editor_settings.settings_changed.connect( _on_editor_settings_changed )
 	@warning_ignore_restore('return_value_discarded')
 
-
-	add_properties_to_settings()
-	add_builtin_settings()
+	add_target_properties()
+	#add_helper_properties()
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -167,91 +181,170 @@ func _init( target : EditorPlugin, prefix : String = "" )-> void:
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
+## Scan addons folder for plugins [br]
+## Each dict:
+## [codeblock]{
+##   "path"[/code]:   "res://addons/my_plugin/",
+##   "config"[/code]: {"name": "...", "script": "...", ...}
+## }[/codeblock]
+func get_all_plugins_info( only_loaded:bool = false) -> Array[Dictionary]:
+	var enabled_plugins:PackedStringArray = ProjectSettings.get_setting("editor_plugins/enabled")
+	var plugins_info: Array[Dictionary] = []
+
+	# Open the addons directory
+	var addons_path:String = "res://addons/"
+	var dir: DirAccess = DirAccess.open(addons_path)
+	if dir == null:
+		push_error("Failed to open res://addons/ directory")
+		return plugins_info
+
+	# Get list of subdirectories (plugin folders)
+	dir.list_dir_begin()
+	var folder_name: String = dir.get_next()
+	while folder_name != "":
+		if dir.current_is_dir():
+			var plugin_path: String = addons_path.path_join(folder_name)
+			var cfg_path: String = plugin_path.path_join("plugin.cfg")
+
+			if only_loaded and cfg_path not in enabled_plugins:
+				folder_name = dir.get_next()
+				continue
+
+			if FileAccess.file_exists(cfg_path):
+				var config: ConfigFile = ConfigFile.new()
+				var err: int = config.load(cfg_path)
+				if err == OK:
+					var config_props: Dictionary = {}
+
+					var keys: PackedStringArray = config.get_section_keys("plugin")
+					for key in keys:
+						config_props[key] = config.get_value("plugin", key)
+
+					plugins_info.append({
+						"path": plugin_path,
+						"config": config_props,
+						"enabled": plugin_path in enabled_plugins
+					})
+				else:
+					push_warning("Failed to load " + cfg_path + " (error: " + str(err) + ")")
+
+		folder_name = dir.get_next()
+	dir.list_dir_end()
+	return plugins_info
+
+
+# Buttons for callables that point to scripts
+# I dont think are serialisable as a setting properly.
+# so they always set. I should check the settings resource.
+static func add_callable_as_button(
+			path:String,
+			callable:Callable,
+			label:String = callable.get_method().capitalize(),
+			) -> void:
+	editor_settings.set( path, callable )
+	editor_settings.add_property_info({
+		&'name': path,
+		&'type': TYPE_CALLABLE,
+		&'hint': PROPERTY_HINT_TOOL_BUTTON,
+		&'hint_string': label,
+	})
+
+
 ## Add all the properties as settings
-func add_properties_to_settings() -> void:
-	for property : Dictionary in _target.get_property_list():
+func add_target_properties() -> void:
+	print("Adding exported properties of '%s' to prefix: '%s'" % [_target, _prefix])
+	for property:Dictionary in _target.get_property_list():
 		# We're abusing the property usage here, but custom settings are always
 		# considered advanced so this flag isnt necessarily used for any other
 		# purpose at this time.
 		if not (property.usage & PROPERTY_USAGE_EDITOR_BASIC_SETTING):
 			continue
 
-		var prop_name : StringName = property.get(&'name')
-		var setting_name : StringName = _prefix
-
-		# Split into groups
+		var prop_name:String = property.get(&'name')
+		print("\tProperty: '%s'" % prop_name)
+		
+		var current_value:Variant = _target.get( prop_name )
+		print("\t\tCurrent_value '%s'" % current_value)
+		
+		# Optionally split on '_' and join with '/' for grouping.
+		var setting_name:StringName = property.get(&'name')
 		if property.usage & (PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP):
-			for segment : String in prop_name.split('_', false,
-				2 if property.usage & PROPERTY_USAGE_SUBGROUP else 1):
-				setting_name = setting_name.path_join(segment)
-		else:
-			setting_name = setting_name.path_join(prop_name)
-
-		var setting : Dictionary = {
+			setting_name = '/'.join(setting_name.split('_', false,
+				2 if property.usage & PROPERTY_USAGE_SUBGROUP else 1))
+		
+		setting_name = _prefix.path_join( setting_name )
+		
+		# Handle TOOL_BUTTON hint
+		if current_value \
+		and property.type == TYPE_CALLABLE \
+		and property.hint & PROPERTY_HINT_TOOL_BUTTON:
+			print("Assigning Tool Button")
+			var button_func:Callable = current_value
+			var hint_string:String = property.hint_string
+			add_callable_as_button(setting_name, button_func, hint_string )
+			continue
+		
+		# Construct setting info.
+		var setting_info:Dictionary = {
 			&'name': setting_name,
 			&'type': property.type,
 			&'hint': property.hint,
 			&'hint_string': property.hint_string
 		}
-
-		var initial_value : Variant = _target.get( prop_name )
-
+		
 		# update the settings.
+		print("\t\tSetting: '%s' = %s" % [setting_name, str(current_value)] )
 		if not editor_settings.has_setting(setting_name):
-			editor_settings.set_setting( setting_name, initial_value )
-			editor_settings.set_initial_value(setting_name, initial_value, true)
+			editor_settings.set_setting( setting_name, current_value )
+			editor_settings.set_initial_value(setting_name, current_value, true)
+		
 		# Incase our plugin has changed, update the setting
-		editor_settings.set_initial_value(setting_name, initial_value, false)
-		editor_settings.add_property_info(setting)
+		editor_settings.set_initial_value(setting_name, current_value, false)
+		editor_settings.add_property_info(setting_info)
 
-		var prop_val : Variant = editor_settings.get(setting_name)
+		continue
+		var prop_val:Variant = editor_settings.get(setting_name)
 		_target.set( prop_name, prop_val )
 
 
 ## Add some boilerplate settings.
-func add_builtin_settings() -> void:
-	# Add tool button to open object in the inspector.
-	var open_inspector : Dictionary = {
-		&'name': _prefix.path_join(&"built-in").path_join("inspect"),
-		&'type': TYPE_CALLABLE,
-		&'hint': PROPERTY_HINT_TOOL_BUTTON,
-		&'hint_string': "Open Settings Object In Inspector"
-	}
-	var inspector_name : String = open_inspector.name
-	editor_settings.set_setting( inspector_name, EditorInterface.inspect_object.bind(_target) )
-	editor_settings.add_property_info(open_inspector)
+func add_helper_properties() -> void:
+	add_callable_as_button(
+		_prefix.path_join(helper_group).path_join(&"inspect"),
+		EditorInterface.inspect_object.bind(_target),
+		"Inspect EditorPlugin Instance" )
 
-	var rebuild : Dictionary = {
-		&'name': _prefix.path_join(&"built-in").path_join("rebuild"),
-		&'type': TYPE_CALLABLE,
-		&'hint': PROPERTY_HINT_TOOL_BUTTON,
-		&'hint_string': "Rebuild Settings"
-	}
-	var rebuild_name : String = rebuild.name
-	editor_settings.set_setting( rebuild_name, rebuild_settings )
-	editor_settings.add_property_info(rebuild)
-
-	var erase_when_exit : Dictionary = {
-		&'name': _prefix.path_join(&"built-in").path_join(&"erase_when_exit"),
-		&'type': TYPE_BOOL,
-		&'hint': PROPERTY_HINT_NONE,
-		&'hint_string': ""
-	}
-	var erase_name : String = erase_when_exit.name
-	editor_settings.set_setting( erase_name, false )
-	editor_settings.add_property_info(erase_when_exit)
+	add_callable_as_button(
+		_prefix.path_join(helper_group).path_join(&"rebuild"),
+		_on_rebuild_pressed,
+		"Rebuild Settings" )
+		
+	add_callable_as_button(
+		_prefix.path_join(helper_group).path_join(&"erase"),
+		_on_erase_pressed,
+		"Erase Extension Prefix" )
+	
+	add_callable_as_button(
+		_prefix.path_join(helper_group).path_join(&"unload"),
+		_on_unload_pressed,
+		"Unload Extension" )
 
 
-## Erase settings with _prefix
-func erase_settings_in_prefix() -> void:
-	print("Scrubbing '%s/*' from editor configuration." % _prefix )
+## Erase all editor settings from a prefix
+static func erase_prefix( prefix:String ) -> void:
+	print("Scrubbing '%s/*' from editor configuration." % prefix )
 	for property in editor_settings.get_property_list():
-		var setting_name : String = property.get(&'name')
-		if setting_name.begins_with(_prefix):
-			editor_settings.erase(setting_name)
-
-
-func rebuild_settings() -> void:
-	erase_settings_in_prefix()
-	add_properties_to_settings()
-	add_builtin_settings()
+		# ignore properties outside of our prefix.
+		var setting_name:String = property.get(&'name')
+		if not setting_name.begins_with(prefix): continue
+		
+		# CALLABLES aren't serialisable, but we are unable to change the usage flags.
+		# if we try to erase it here we get following error
+		# ERROR: property(settings-helper_rebuild) invalid for target(FlatBuffers)
+		if property.type == TYPE_CALLABLE: continue
+		# the dictionary provided here, while mutable, is a copy.
+		# there appears to be no way to change the property usage flags.
+		# this set's up a situation where once set, a callable cannot be unset.
+		
+		print( "Erasing: %s" % setting_name)
+		editor_settings.erase(setting_name)

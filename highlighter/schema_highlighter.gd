@@ -18,6 +18,7 @@ const Token = preload('uid://cvcd6kyaa4f1a')
 const Tips = preload('uid://d03rmh07bwicj')
 const StackFrame = preload('uid://c0ub8clj4bhhv')
 const FrameStack = preload('uid://d3cyn1bbenwmo')
+const Parser = preload("uid://dsj2eh2lfm2sg")
 
 const LogLevel = FlatBuffersPlugin.LogLevel
 
@@ -29,7 +30,7 @@ const LogLevel = FlatBuffersPlugin.LogLevel
 func                        ________PROPERTIES_______              ()->void:pass
 
 var plugin:FlatBuffersPlugin
-var parser:FlatBuffersParser
+var parser:Parser
 
 # ██   ██ ██  ██████  ██   ██ ██      ██  ██████  ██   ██ ████████ ███████ ██████
 # ██   ██ ██ ██       ██   ██ ██      ██ ██       ██   ██    ██    ██      ██   ██
@@ -120,7 +121,7 @@ func                        ________OVERRIDES________              ()->void:pass
 func _init( plugin_ref:FlatBuffersPlugin ):
 	if plugin_ref:
 		plugin = plugin_ref
-	parser = FlatBuffersParser.new(plugin)
+	parser = Parser.new(plugin)
 	parser._sync_constants_from_plugin()
 
 	plugin.print_log(LogLevel.TRACE, "[b]FlatBuffersHighlighter._init() - Completed[/b]")
@@ -212,7 +213,7 @@ func _update_cache():
 func                        _________METHODS_________              ()->void:pass
 
 func highlight( token:Token ):
-	line_dict[token.col] = { 'color':plugin.get_colour( token.type ) }
+	line_dict[token.col] = { 'color':plugin.opts.get_colour( token.type ) }
 	line_dict[token.col + token.t.length()] = {}
 	if not (parser.error_flag or parser.warning_flag):
 		get_text_edit().set_line_background_color(token.line, Color(0,0,0,0) )
@@ -226,8 +227,8 @@ func highlight_colour( token:Token, colour:Color ):
 
 func syntax_warning( token:Token, reason = "" ):
 	parser.warning_flag = true
-	var colour:Color = plugin.get_colour(plugin.LogLevel.WARNING)
-	if plugin.highlight_warning:
+	var colour:Color = plugin.opts.get_colour(plugin.LogLevel.WARNING)
+	if plugin.opts.highlight_warning:
 		get_text_edit().set_line_background_color(token.line, colour.blend(Color(0,0,0,.5)) )
 	else: line_dict[token.col] = { 'color':colour }
 	# TODO, if the token being warned about is on the line we are editing perhaps
@@ -240,8 +241,8 @@ func syntax_warning( token:Token, reason = "" ):
 
 func syntax_error( token:Token, reason = "" ):
 	parser.error_flag = true
-	var colour:Color = plugin.get_colour(plugin.LogLevel.ERROR)
-	if plugin.highlight_error:
+	var colour:Color = plugin.opts.get_colour(plugin.LogLevel.ERROR)
+	if plugin.opts.highlight_error:
 		get_text_edit().set_line_background_color(token.line, colour.blend(Color(0,0,0,.5)) )
 	else: line_dict[token.col] = { 'color':colour }
 	# TODO, if the token being warned about is on the line we are editing perhaps

@@ -1,10 +1,11 @@
+##  _____    _              [br]
+## |_   _|__| |_____ _ _    [br]
+##   | |/ _ \ / / -_) ' \   [br]
+##   |_|\___/_\_\___|_||_|  [br]
+## ------------------------ [br]
+## 
+## 
 ## Token class helps with static typing to catch and fix bugs.
-
-#  _____    _
-# |_   _|__| |_____ _ _
-#   | |/ _ \ / / -_) ' \
-#   |_|\___/_\_\___|_||_|
-# ------------------------
 
 ## Types of token that the reader knows about
 enum Type {
@@ -23,21 +24,26 @@ enum Type {
 }
 
 ## Default Values
-static var defs : Dictionary = {
+static var defs:Dictionary = {
 	&"line":0, &"col":0, &"type":Type.NULL, &"t":"String"
 }
 
-## properties
-var line : int
-var col : int
-var type : Type
-var t : String
+# --- Properties ---------
 
+var line:int ## Line Number
+var col:int ## Column Number
+var type:Type ## Token Type
+var t:String ## Token String
+
+## returns [code]true[/code] of the toke type EOF?
 func eof() -> bool: return type == Type.EOF
+
+## returns [code]true[/code] if the toke type EOL?
 func eol() -> bool: return type == Type.EOL
 
+
 ## Constructor
-func _init( line_or_dict = 0, _col : int = 0, _type : Type = Type.NULL, _t : String = "" ) -> void:
+func _init( line_or_dict = 0, _col:int = 0, _type:Type = Type.NULL, _t:String = "" ) -> void:
 	if line_or_dict is int:
 		line = line_or_dict; col = _col; type = _type; t = _t
 	elif line_or_dict is Dictionary:
@@ -46,8 +52,9 @@ func _init( line_or_dict = 0, _col : int = 0, _type : Type = Type.NULL, _t : Str
 		var typename = type_string(typeof(line_or_dict))
 		assert(false, "Token._init( '%s', ... ) is not an int or dict" % typename )
 
+
 ## assignment from dictionary
-func from_dict( value : Dictionary ):
+func from_dict( value:Dictionary ):
 	# Validate and Assign
 	for key in defs.keys():
 		# Missing keys are not an error, assigning default
@@ -59,6 +66,7 @@ func from_dict( value : Dictionary ):
 			set(key, defs[key])
 		# value[key] passed validation.
 		set(key, value[key])
+
 
 ## conversion to string
 func _to_string() -> String:
