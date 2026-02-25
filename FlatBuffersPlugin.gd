@@ -212,7 +212,60 @@ func flatc_generate( schema_path:String, args:Array ) -> Dictionary:
 
 
 static func generate( schema_path:String, args:Array ) -> Dictionary:
-	return _prime.flatc_generate( schema_path, args  )
+	return _prime.flatc_import( schema_path, args  )
+
+
+func flatc_import( schema_path:String, args:Array ) -> Dictionary:
+	print_log( LogLevel.TRACE, "%s.flatc_import(%s, %s)" % [name, schema_path, args] )
+	var flatc_exe:String = flatc_opts.flatc_exe
+	# Make sure we have the flac compiler
+	if not FileAccess.file_exists(flatc_exe):
+		var msg = "flatc compiler is not found at '%s'" % flatc_exe
+		push_error(msg)
+		return {'retcode':ERR_FILE_BAD_PATH, 'output': [msg]}
+
+	if not FileAccess.file_exists(schema_path):
+		var msg = "Missing Schema File: '%s'" % schema_path
+		push_error(msg)
+		return {'retcode':ERR_FILE_BAD_PATH, 'output': [msg] }
+
+	# Lastly add the schema path
+	args.append( schema_path.replace('res://', './') )
+
+	var report:Dictionary = {
+		'schema': schema_path,
+		'flatc_path':flatc_exe,
+		'args':args,
+	}
+
+	if opts.debug or opts.editorlog_verbosity >= LogLevel.NOTICE:
+		print( JSON.stringify(report, "  ", false) )
+
+	var output:Array = []
+	var retcode = OS.execute( flatc_exe, args, output, true )
+
+	report['retcode'] = retcode
+	report['output'] = '\n'.join(output).split('\n', false)
+
+	if opts.debug or opts.editorlog_verbosity >= LogLevel.NOTICE:
+		print( JSON.stringify({
+			'retcode': retcode,
+			'output': '\n'.join(output).split('\n', false),
+		}, "  ", false) )
+
+	if retcode:
+		print_rich('\n'.join(["[color=salmon][b]",
+		"ERROR: flatc failed with code '%x'[/b]" % [retcode],
+		"\toutput: " + '\n'.join(output) + "[/color]"
+		]))
+
+	#TODO Figure out a way to get the script in the editor to reload.
+	#  the only reliable way I have found to refresh the script in the editor
+	#  is to change the focus away from Godot and back again.
+
+	# This line refreshes the filesystem dock.
+	#if not retcode: EditorInterface.get_resource_filesystem().scan()
+	return report
 
 
 # ██████  ██  ██████  ██   ██ ████████      ██████ ██      ██  ██████ ██   ██  #
