@@ -12,6 +12,8 @@ extends EditorSyntaxHighlighter
 
 
 func                        _________IMPORTS_________              ()->void:pass
+const Print = preload("uid://cbluyr4ifn8g3")
+const LogLevel = Print.LogLevel
 
 # Supporting Scripts
 const Token = preload('uid://cvcd6kyaa4f1a')
@@ -20,7 +22,7 @@ const StackFrame = preload('uid://c0ub8clj4bhhv')
 const FrameStack = preload('uid://d3cyn1bbenwmo')
 const Parser = preload("uid://dsj2eh2lfm2sg")
 
-const LogLevel = FlatBuffersPlugin.LogLevel
+
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
 # ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
@@ -59,13 +61,13 @@ var line_dict:Dictionary[int,Dictionary]
 # TODO, this function is a little messy and needs a good audit.
 # Still doesnt solve the problem it needs to solve.
 ## Account for added and removed lines
-func _on_lines_edited_from(from_line: int, to_line: int):
-	plugin.print_log( LogLevel.TRACE,
+func _on_lines_edited_from(from_line: int, to_line: int) -> void:
+	Print.plog( LogLevel.TRACE,
 		"FlatBuffersHighlighter._on_lines_edited_from(from_line%d, to_line:%d)"%
 		[from_line, to_line])
 	if from_line == to_line: return
 
-	var text_edit:TextEdit = get_text_edit()
+	#var text_edit:TextEdit = get_text_edit()
 	# How do I go about shifting all the indexes over, do I just increment?
 	# build a new dictionary from the old?
 	# I'm not really sure what the most efficient route here is for this.
@@ -118,13 +120,13 @@ func _on_lines_edited_from(from_line: int, to_line: int):
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
-func _init( plugin_ref:FlatBuffersPlugin ):
+func _init( plugin_ref:FlatBuffersPlugin ) -> void:
 	if plugin_ref:
 		plugin = plugin_ref
 	parser = Parser.new(plugin)
 	parser._sync_constants_from_plugin()
 
-	plugin.print_log(LogLevel.TRACE, "[b]FlatBuffersHighlighter._init() - Completed[/b]")
+	Print.plog(LogLevel.TRACE, "[b]FlatBuffersHighlighter._init() - Completed[/b]")
 
 
 func _create() -> EditorSyntaxHighlighter:
@@ -132,20 +134,20 @@ func _create() -> EditorSyntaxHighlighter:
 	return self_script.new(plugin)
 
 
-func _get_name ( ) -> String:
+func _get_name() -> String:
 	return "FlatBuffersSchema"
 
 
-func _get_supported_languages ( ) -> PackedStringArray:
+func _get_supported_languages() -> PackedStringArray:
 	return ["FlatBuffersSchema", "fbs"]
 
 
-func _clear_highlighting_cache ( ):
+func _clear_highlighting_cache() -> void:
 	#resource = get_edited_resource()
 	# file_location = resource.resource_path.get_base_dir() + "/"
 	# FIXME: This ^^ relies on a patch https://github.com/godotengine/godot/pull/96058
 
-	plugin.print_log(LogLevel.TRACE, "[b]_clear_highlighting_cache( )[/b]")
+	Print.plog(LogLevel.TRACE, "[b]_clear_highlighting_cache( )[/b]")
 	var text_edit:TextEdit = get_text_edit()
 
 	dict.clear()
@@ -162,9 +164,9 @@ func _clear_highlighting_cache ( ):
 
 
 func _get_line_syntax_highlighting(line_num: int) -> Dictionary:
-	if plugin.log_level(LogLevel.TRACE):
+	if Print.lvl(LogLevel.TRACE):
 		print()
-		plugin.print_log(LogLevel.TRACE, "[b]_get_line_syntax_highlighting( line_num:%d )[/b]" % [line_num+1])
+		Print.plog(LogLevel.TRACE, "[b]_get_line_syntax_highlighting( line_num:%d )[/b]" % [line_num+1])
 
 	var text_edit:TextEdit = get_text_edit()
 
@@ -175,7 +177,7 @@ func _get_line_syntax_highlighting(line_num: int) -> Dictionary:
 	if not parser.has_performed_quick_scan:
 		parser.quick_scan_text(text_edit.text)
 
-	var line = text_edit.get_line(line_num)
+	var line:String = text_edit.get_line(line_num)
 	if line.is_empty():
 		return {}
 
@@ -190,18 +192,20 @@ func _get_line_syntax_highlighting(line_num: int) -> Dictionary:
 	return result
 
 
-func _update_cache():
+func _update_cache() -> void:
 	# Get settings
-	plugin.print_log(LogLevel.TRACE, "[b]_update_cache( )[/b]")
+	Print.plog(LogLevel.TRACE, "[b]_update_cache( )[/b]")
 	var text_edit:TextEdit = get_text_edit()
 
 	if not text_edit.lines_edited_from.is_connected( _on_lines_edited_from ):
-		text_edit.lines_edited_from.connect( _on_lines_edited_from )
+		var err:int = text_edit.lines_edited_from.connect( _on_lines_edited_from )
+		if err != OK:
+			Print.plog(LogLevel.ERROR, error_string(err))
 
 	parser.quick_scan( text_edit.text )
 
-	text_edit.set_tooltip_request_func( func( word ):
-		var tip = Tips.keywords.get(word)
+	text_edit.set_tooltip_request_func( func( word:String ) -> String:
+		var tip:String = Tips.keywords.get(word)
 		return  tip if tip else "" )
 
 
@@ -212,20 +216,20 @@ func _update_cache():
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
-func highlight( token:Token ):
+func highlight( token:Token ) -> void:
 	line_dict[token.col] = { 'color':plugin.opts.get_colour( token.type ) }
 	line_dict[token.col + token.t.length()] = {}
 	if not (parser.error_flag or parser.warning_flag):
 		get_text_edit().set_line_background_color(token.line, Color(0,0,0,0) )
 
 
-func highlight_colour( token:Token, colour:Color ):
+func highlight_colour( token:Token, colour:Color ) -> void:
 	line_dict[token.col] = { 'color':colour }
 	if not (parser.error_flag or parser.warning_flag):
 		get_text_edit().set_line_background_color(token.line, Color(0,0,0,0) )
 
 
-func syntax_warning( token:Token, reason = "" ):
+func syntax_warning( token:Token, reason:String = "" ) -> void:
 	parser.warning_flag = true
 	var colour:Color = plugin.opts.get_colour(plugin.LogLevel.WARNING)
 	if plugin.opts.highlight_warning:
@@ -233,13 +237,13 @@ func syntax_warning( token:Token, reason = "" ):
 	else: line_dict[token.col] = { 'color':colour }
 	# TODO, if the token being warned about is on the line we are editing perhaps
 	# we should not print any warnings at all, or change the loglevel
-	if plugin.log_level(LogLevel.WARNING):
-		var frame_type = '#' if parser.stack.is_empty() else StackFrame.Type.find_key(parser.stack.top().type)
-		plugin.print_log( LogLevel.WARNING, "%s:Warning in: %s - %s" % [frame_type, token, reason] )
-		plugin.print_log( LogLevel.DEBUG, str(parser.stack) )
+	if Print.lvl(LogLevel.WARNING):
+		var frame_type:String = '#' if parser.stack.is_empty() else StackFrame.Type.find_key(parser.stack.top().type)
+		Print.plog( LogLevel.WARNING, "%s:Warning in: %s - %s" % [frame_type, token, reason] )
+		Print.plog( LogLevel.DEBUG, str(parser.stack) )
 
 
-func syntax_error( token:Token, reason = "" ):
+func syntax_error( token:Token, reason:String = "" ) -> void:
 	parser.error_flag = true
 	var colour:Color = plugin.opts.get_colour(plugin.LogLevel.ERROR)
 	if plugin.opts.highlight_error:
@@ -247,7 +251,7 @@ func syntax_error( token:Token, reason = "" ):
 	else: line_dict[token.col] = { 'color':colour }
 	# TODO, if the token being warned about is on the line we are editing perhaps
 	# we should not print any warnings at all, or change the loglevel
-	if plugin.log_level(LogLevel.ERROR):
-		var frame_type = '#' if parser.stack.is_empty() else StackFrame.Type.find_key(parser.stack.top().type)
-		plugin.print_log( LogLevel.ERROR, "%s:Error in: %s - %s" % [frame_type, token, reason] )
-		plugin.print_log( LogLevel.DEBUG, str(parser.stack) )
+	if Print.lvl(LogLevel.ERROR):
+		var frame_type:String = '#' if parser.stack.is_empty() else StackFrame.Type.find_key(parser.stack.top().type)
+		Print.plog( LogLevel.ERROR, "%s:Error in: %s - %s" % [frame_type, token, reason] )
+		Print.plog( LogLevel.DEBUG, str(parser.stack) )

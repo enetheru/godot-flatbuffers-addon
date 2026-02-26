@@ -14,7 +14,8 @@ const FrameStack = preload('uid://d3cyn1bbenwmo')
 const StackFrame = preload('uid://c0ub8clj4bhhv')
 const FlatBuffersHighlighter = preload('uid://ddcfjoxe7i5jo')
 
-const LogLevel = FlatBuffersPlugin.LogLevel
+const Print = preload("uid://cbluyr4ifn8g3")
+const LogLevel = Print.LogLevel
 
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
@@ -120,24 +121,28 @@ var active_highlighter: FlatBuffersHighlighter = null
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
-func _init(plugin_ref: FlatBuffersPlugin = null):
+func _init(plugin_ref: FlatBuffersPlugin = null) -> void:
 	if plugin_ref:
 		plugin = plugin_ref
 		_sync_constants_from_plugin()
 
-	new_index_chunk.resize(10)
+	var err:int =  new_index_chunk.resize(10)
+	if err != OK: Print.plog(LogLevel.ERROR, error_string(err))
+		
 	new_index_chunk.fill(false)
 
 	scalar_types = integer_types + float_types + boolean_types
 	reader = Reader.new(self)
 
 	# This saves us from having to highlight everything manually.
-	reader.new_token.connect(highlight)
+	err = reader.new_token.connect(highlight)
+	if err != OK: Print.plog(LogLevel.ERROR, error_string(err))
 
-	reader.newline.connect( func(l,p):
-		if error_flag: return
-		save_stack(l, 0)
-	)
+	err = reader.newline.connect( 
+		func(l:int,_p:int) -> void:
+			if error_flag: return
+			save_stack(l, 0))
+	if err != OK: Print.plog(LogLevel.ERROR, error_string(err))
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
 #         ████  ████ ██         ██    ██   ██ ██    ██ ██   ██ ██              #
@@ -160,44 +165,49 @@ func clear_cache() -> void:
 
 
 func resize_stack_index( size:int ) -> void:
-	stack_index.resize( size )
+	var err:int = stack_index.resize( size )
+	if err != OK: Print.plog(LogLevel.ERROR, error_string(err))
 	stack_index.fill(false)
 
 
 func lpad( extra:int = 0 ) -> String:
-	return "".lpad( stack.size() -1 + extra, '\t' )
+	var amount:int = stack.size() -1 + extra
+	return "".lpad( amount , '\t' )
 
 
-func _sync_constants_from_plugin():
+func _sync_constants_from_plugin() -> void:
 	# TODO: move these to a shared constants file later
 	if "scalar_types" in plugin:
-		scalar_types = plugin.scalar_types
+		scalar_types = plugin.get('scalar_types')
 	if "keywords" in plugin:
-		keywords = plugin.keywords
+		keywords = plugin.get('keywords')
 
 
 # ── File Helper ────────────────────────────────
 func check_include_file(file_path: String) -> String:
 	var plugin_script:Resource = FlatBuffersPlugin
-	var plugin_path = plugin_script.resource_path.get_base_dir()
+	var plugin_path:String = plugin_script.resource_path.get_base_dir()
 
 	if file_path == "godot.fbs":
 		file_path = plugin_path + "/godot.fbs"
 
 	if FileAccess.file_exists(file_path):
-		plugin.print_log(LogLevel.TRACE, "Located file: '%s'" % file_path)
+		Print.plog(LogLevel.TRACE, "Located file: '%s'" % file_path)
 		return file_path
 
 	if file_path.is_absolute_path():
-		plugin.print_log(LogLevel.ERROR, "CheckInclude: Unable to locate file: '%s'" % file_path)
+		Print.plog(LogLevel.ERROR, "CheckInclude: Unable to locate file: '%s'" % file_path)
 		return ""
 
-	var include_paths:Array = plugin.flatc_cmdline_options.get_include_paths()
-	plugin.print_log( LogLevel.TRACE, "Searching Locations: %s" % [include_paths])
+	var main_config:FlatBuffersGeneratorOpts = ProjectSettings.get_setting('flatbuffers/GeneratorConfigs/main', null)
+	if main_config == null: return ""
+	
+	var include_paths:Array = main_config.get_include_paths()
+	Print.plog( LogLevel.TRACE, "Searching Locations: %s" % [include_paths])
 	for ipath: String in include_paths:
-		var try_path = ipath.path_join(file_path)
+		var try_path:String = ipath.path_join(file_path)
 		if FileAccess.file_exists(try_path):
-			plugin.print_log(LogLevel.DEBUG, "Found: '%s'" % try_path)
+			Print.plog(LogLevel.DEBUG, "Found: '%s'" % try_path)
 			return try_path
 
 	return ""
@@ -211,22 +221,22 @@ func check_include_file(file_path: String) -> String:
 func                        _______HIGHLIGHTER_______              ()->void:pass
 # ── Colour / error helpers ─────────────────────────
 
-func highlight(token: Token):
+func highlight(token: Token) -> void:
 	active_highlighter.highlight(token)
-	if plugin.log_level(LogLevel.TRACE):
-		var colour = plugin.opts.get_colour(token.type).to_html()
+	if Print.lvl(LogLevel.TRACE):
+		var colour:String = plugin.opts.get_colour(token.type).to_html()
 		print_rich( lpad() + "\t[color=%s]%s[/color]" % [colour, token] )
 
 
-func highlight_colour(token: Token, colour:Color):
+func highlight_colour(token: Token, colour:Color) -> void:
 	active_highlighter.highlight_colour(token, colour)
 
 
-func syntax_warning(token: Token, reason: String = ""):
+func syntax_warning(token: Token, reason: String = "") -> void:
 	active_highlighter.syntax_warning(token, reason)
 
 
-func syntax_error(token: Token, reason: String = ""):
+func syntax_error(token: Token, reason: String = "") -> void:
 	active_highlighter.syntax_error(token, reason)
 
 
@@ -247,11 +257,11 @@ func save_stack(line_num: int, force: bool = false) -> void:
 		stack_index.append(false)
 
 	# Duplicate current stack
-	stack_list[line_num] = stack.duplicate(true)  # deep copy
+	stack_list[line_num] = stack.duplicate()  # deep copy
 	stack_index[line_num] = true
 	prev_idx = line_num
-	plugin.print_log( LogLevel.TRACE, "Stack saved to line %s" % [line_num+1] )
-	plugin.print_log( LogLevel.TRACE, "Saved: %s" % [stack_list[line_num]] )
+	Print.plog( LogLevel.TRACE, "Stack saved to line %s" % [line_num+1] )
+	Print.plog( LogLevel.TRACE, "Saved: %s" % [stack_list[line_num]] )
 
 
 # Get the stack to restore from for this line
@@ -260,9 +270,9 @@ func get_prev_stack(line_num: int) -> FrameStack:
 	for i in range(line_num, -1, -1):
 		if stack_index.size() > i and stack_index[i]:
 			prev_idx = i
-			var saved = stack_list.get(i)
+			var saved:FrameStack = stack_list.get(i)
 			if saved:
-				return saved.duplicate(true)  # return a copy to avoid mutation issues
+				return saved.duplicate()  # return a copy to avoid mutation issues
 	# No previous state → fresh stack
 	return FrameStack.new(20)
 
@@ -324,27 +334,27 @@ func _dispatch(frame: StackFrame, token: Token) -> void:
 func                        __________FRAMES_________              ()->void:pass
 
 ## start_frame() runs the appropriate stack frame function
-func start_frame( frame:StackFrame, token:Token ):
-	if plugin.log_level( LogLevel.TRACE ):
+func start_frame( frame:StackFrame, token:Token ) -> void:
+	if Print.lvl( LogLevel.TRACE ):
 		var msg:Array = [
 			"" if frame.data.is_empty() else "⮱Resume:",
 			frame,
 			JSON.stringify( token ) ]
-		plugin.print_trace( lpad() + " ".join(msg) )
+		Print.plog( LogLevel.TRACE, lpad() + " ".join(msg) )
 	_dispatch(frame, token)
 
 
 ## end_frame() pops the last stackframe from the stack
 ## if retval is not null, the top stack frame will have 'return' = retval added
-func end_frame(retval = null):
-	plugin.print_trace( lpad() + "⮶Return%s" % [" '%s'" % retval if retval else ""] )
-	stack.pop()
+func end_frame(retval:Variant = null) -> void:
+	Print.plog( LogLevel.TRACE, lpad() + "⮶Return%s" % [" '%s'" % retval if retval else ""] )
+	var _sf:StackFrame = stack.pop()
 	if not stack.is_empty() and retval != null:
 		stack.top().data["return"] = retval
 
 
-func error_frame( token:Token, message: String ):
-	syntax_error(token, "decl_type != union | enum.")
+func error_frame( token:Token, message:String ) -> void:
+	syntax_error(token, message)
 	end_frame(&"error")
 
 
@@ -358,25 +368,25 @@ func                       ________QUICK_SCAN_______               ()->void:pass
 
 func quick_scan(full_text: String) -> void:
 	if is_quick_scan_in_progress:
-		plugin.print_log( LogLevel.WARNING, "QuickScanText: already in progress — skipping nested call")
+		Print.plog( LogLevel.WARNING, "QuickScanText: already in progress — skipping nested call")
 		return
 	is_quick_scan_in_progress = true
 
-	plugin.print_log( LogLevel.DEBUG, "[b]quick_scan[/b]")
+	Print.plog( LogLevel.DEBUG, "[b]quick_scan[/b]")
 	quick_scan_text(full_text)
 
 	while scan_pending.size() > 0:
 		var file_path:String = scan_pending.pop_front()
-		plugin.print_log( LogLevel.DEBUG, "Scanning: '%s'" % file_path)
+		Print.plog( LogLevel.DEBUG, "Scanning: '%s'" % file_path)
 
 		# Dont create a loop
 		if file_path in scanned_files:
-			plugin.print_log( LogLevel.TRACE, "File already scanned" )
+			Print.plog( LogLevel.TRACE, "File already scanned" )
 			continue
 
 		var file:FileAccess = FileAccess.open(file_path, FileAccess.READ)
 		if not file:
-			plugin.print_log( LogLevel.ERROR, "QuickScan: Unable to open file for scanning.")
+			Print.plog( LogLevel.ERROR, "QuickScan: Unable to open file for scanning.")
 			continue
 
 		var content:String = file.get_as_text()
@@ -406,30 +416,30 @@ func quick_scan_text(full_text: String) -> void:
 			token = qreader.get_token()
 			qreader.adv_line()
 			if token.type != Token.Type.STRING: continue
-			plugin.print_log(LogLevel.TRACE, "include %s" % token.t)
+			Print.plog(LogLevel.TRACE, "include %s" % token.t)
 			# Strip quotes from token
-			var file_path = token.t.substr(1, token.t.length() - 2)
+			var file_path:String = token.t.substr(1, token.t.length() - 2)
 			var checked_path:String = check_include_file(file_path)
 
 			if checked_path.is_empty():
-				plugin.print_log( LogLevel.ERROR, "QuickScanText: Unable to locate file: '%s'" % file_path )
+				Print.plog( LogLevel.ERROR, "QuickScanText: Unable to locate file: '%s'" % file_path )
 				reader.adv_token(token)
 			elif checked_path in included_files:
-				plugin.print_log( LogLevel.TRACE, "File already included: '%s'" % checked_path )
+				Print.plog( LogLevel.TRACE, "File already included: '%s'" % checked_path )
 			else:
 				# Scan the file if we havent already
-				plugin.print_log( LogLevel.DEBUG, "Including file: %s" % checked_path )
+				Print.plog( LogLevel.DEBUG, "Including file: %s" % checked_path )
 				included_files.append(checked_path)
 				scan_pending.append(checked_path)
 			continue
 
 
 		if token.t in ['struct', 'table', 'union']:
-			var ident = qreader.get_token()
+			var ident:Token = qreader.get_token()
 			if ident.type != Token.Type.IDENT:
 				qreader.adv_line()
 				continue
-			plugin.print_log(LogLevel.TRACE, "%s %s" % [token.t, ident.t])
+			Print.plog(LogLevel.TRACE, "%s %s" % [token.t, ident.t])
 			match token.t:
 				&"struct": struct_types.append(ident.t)
 				&"table":  table_types.append(ident.t)
@@ -438,33 +448,33 @@ func quick_scan_text(full_text: String) -> void:
 			continue
 
 		if token.t == 'enum':
-			var ident = qreader.get_token()
+			var ident:Token = qreader.get_token()
 			if ident.type != Token.Type.IDENT:
 				qreader.adv_line()
 				continue
-			plugin.print_log(LogLevel.TRACE, "%s %s" % [token.t, ident.t])
+			Print.plog(LogLevel.TRACE, "%s %s" % [token.t, ident.t])
 
-			var enum_vals = enum_types.get_or_add(ident.t,
+			var enum_vals:Array[StringName] = enum_types.get_or_add(ident.t,
 					Array([], TYPE_STRING_NAME, "", null))
 			while token.t != '}':
 				token = qreader.get_token()
 				if token.type == Token.Type.IDENT:
 					enum_vals.append( token.t )
-			plugin.print_log(LogLevel.TRACE, "enum %s %s" % [ident.t, enum_vals])
+			Print.plog(LogLevel.TRACE, "enum %s %s" % [ident.t, enum_vals])
 
 		qreader.adv_line()
 
 
 func quick_scan_file(file_path: String) -> bool:
-	plugin.print_log( LogLevel.DEBUG, "[b]quick_scan_file: '%s'[/b]" % file_path)
+	Print.plog( LogLevel.DEBUG, "[b]quick_scan_file: '%s'[/b]" % file_path)
 
 	if not FileAccess.file_exists( file_path ):
-		plugin.print_log( LogLevel.ERROR,"QuickScan: Unable to locate file for inclusion: %s" % file_path)
+		Print.plog( LogLevel.ERROR,"QuickScan: Unable to locate file for inclusion: %s" % file_path)
 		return false
 
 	# Dont create a loop
 	if file_path in scanned_files:
-		plugin.print_log( LogLevel.TRACE, "File already scanned" )
+		Print.plog( LogLevel.TRACE, "File already scanned" )
 		return true
 
 	if is_quick_scan_in_progress:
@@ -473,7 +483,7 @@ func quick_scan_file(file_path: String) -> bool:
 
 	var file:FileAccess = FileAccess.open(file_path, FileAccess.READ)
 	if not file:
-		plugin.print_log( LogLevel.ERROR, "QuickScan: Unable to open file for scanning.")
+		Print.plog( LogLevel.ERROR, "QuickScan: Unable to open file for scanning.")
 		return false
 
 	var content:String = file.get_as_text()
@@ -489,13 +499,34 @@ func quick_scan_file(file_path: String) -> bool:
 #               ██      ██   ██ ██   ██ ███████ ███████ ██   ██                #
 func                        __________PARSER_________              ()->void:pass
 
+## test the token against the name, and highlight if error.
+func want_token_tl(token: Token, tl: Array[StringName], msg: String = "") -> void:
+	if token.t in tl: return
+	syntax_error(token, "'%s' not in '%s'" % [token.t, tl])
+	if not msg.is_empty(): Print.plog(LogLevel.ERROR, msg)
+
+
+## test the token against the name, and highlight if error.
+func want_token_t(token: Token, t: StringName, msg: String = "") -> void:
+	if token.t == t: return
+	syntax_error(token, "'%s' != '%s'" % [token.t, t])
+	if not msg.is_empty(): Print.plog(LogLevel.ERROR, msg)
+
 
 ## returns true if token.t == t
 func check_token_t(token: Token, t: StringName, msg: String = "") -> bool:
 	if token.t == t: return true
 	syntax_error(token, "'%s' != '%s'" % [token.t, t])
-	if not msg.is_empty(): plugin.print_log(LogLevel.ERROR, msg)
+	if not msg.is_empty(): Print.plog(LogLevel.ERROR, msg)
 	return false
+
+
+## tests token against type, and highlights if no match.
+func want_token_type(token: Token, typ: Token.Type, msg: String = "") -> void:
+	if token.type == typ: return
+	syntax_error(token, "'%s' != '%s'" % [
+		Token.Type.find_key(token.type), Token.Type.find_key(typ)])
+	if not msg.is_empty(): Print.plog(LogLevel.ERROR, msg)
 
 
 ## returns true if token.type == type
@@ -503,7 +534,7 @@ func check_token_type(token: Token, typ: Token.Type, msg: String = "") -> bool:
 	if token.type == typ: return true
 	syntax_error(token, "'%s' != '%s'" % [
 		Token.Type.find_key(token.type), Token.Type.find_key(typ)])
-	if not msg.is_empty(): plugin.print_log(LogLevel.ERROR, msg)
+	if not msg.is_empty(): Print.plog(LogLevel.ERROR, msg)
 	return false
 
 
@@ -578,7 +609,7 @@ func                        _________GRAMMAR_________              ()->void:pass
 # │|___/\__|_||_\___|_|_|_\__,_|
 # ╰──────────────────────────────
 #region Schema
-func parse_schema( p_token:Token ):
+func parse_schema( p_token:Token ) -> void:
 	#schema # = include* ( namespace_decl | type_decl | enum_decl | root_decl
 	#					 | file_extension_decl | file_identifier_decl
 	#					 | attribute_decl | rpc_decl | object )*
@@ -586,7 +617,7 @@ func parse_schema( p_token:Token ):
 
 	if p_token.eof(): return
 
-	var exclude = frame.data.get(&"exclude", 99999999)
+	var exclude:int = frame.data.get(&"exclude", 99999999)
 
 	if p_token.t == &'include':
 		if p_token.line < exclude:
@@ -598,7 +629,7 @@ func parse_schema( p_token:Token ):
 
 	if p_token.type == Token.Type.KEYWORD:
 		frame.data[&"exclude"] = min( exclude, p_token.line )
-		var type = kw_frame_map.get( p_token.t )
+		var type:StackFrame.Type = kw_frame_map.get( p_token.t )
 		stack.push( StackFrame.new( type ) )
 		return
 
@@ -615,12 +646,12 @@ func parse_schema( p_token:Token ):
 # │|___|_||_\__|_|\_,_\__,_\___|
 # ╰──────────────────────────────
 #region Include
-func parse_include( p_token:Token ):
+func parse_include( _p_token:Token ) -> void:
 	# INCLUDE = include string_constant;
-	var frame:StackFrame = stack.top()
+	#var frame:StackFrame = stack.top()
 
 	var token:Token = reader.get_token()
-	check_token_t(token, &'include')
+	want_token_t(token, &'include')
 
 	token = reader.get_token()
 	if check_token_type(token, Token.Type.STRING ):
@@ -630,15 +661,16 @@ func parse_include( p_token:Token ):
 		if checked_path.is_empty():
 			syntax_error( token, "ParseInclude: Unable to locate file: '%s'" % file_path)
 		elif checked_path in included_files:
-			plugin.print_log( LogLevel.TRACE, "File already included: '%s'" % checked_path )
+			Print.plog( LogLevel.TRACE, "File already included: '%s'" % checked_path )
 		else:
-			plugin.print_log( LogLevel.WARNING, "File was not picked up in quick_scan: '%s'" % checked_path )
+			Print.plog( LogLevel.WARNING, "File was not picked up in quick_scan: '%s'" % checked_path )
 			# Scan the file
 			included_files.append(checked_path)
-			quick_scan_file(checked_path)
+			if quick_scan_file(checked_path):
+				syntax_error(token, "quick scan failed to parse file")
 
 	token = reader.get_token()
-	check_token_t(token, &";")
+	want_token_t(token, &";")
 	return end_frame()
 #endregion Include
 
@@ -650,25 +682,25 @@ func parse_include( p_token:Token ):
 # │|_|\_\__,_|_|_|_\___/__/ .__/\__,_\__\___| |___/\___\__|_|
 # ╰───────────────────────|_|─────────────────────────────────
 #region Namespace Decl
-func parse_namespace_decl( p_token:Token ):
+func parse_namespace_decl( _p_token:Token ) -> void:
 	#NAMESPACE_DECL = namespace ident ( . ident )* ;
-	var frame:StackFrame = stack.top()
+	#var frame:StackFrame = stack.top()
 
 	var token:Token = reader.get_token()
-	check_token_t(token, &"namespace")
+	want_token_t(token, &"namespace")
 
 	while true:
 		token = reader.get_token()
-		check_token_type(token, Token.Type.IDENT)
+		want_token_type(token, Token.Type.IDENT)
 
 		token = reader.peek_token()
 		if token.t == &".":
-			reader.get_token()
+			reader.adv_token(token)
 			continue
 		else: break
 
 	token = reader.get_token()
-	check_token_t(token, &";")
+	want_token_t(token, &";")
 	return end_frame()
 #endregion Namespace Decl
 
@@ -680,12 +712,12 @@ func parse_namespace_decl( p_token:Token ):
 # │/_/ \_\__|\__|_| |_|_.__/\_,_|\__\___| |___/\___\__|_|
 # ╰───────────────────────────────────────────────────────
 #region Attribute Decl
-func parse_attribute_decl( p_token:Token ):
+func parse_attribute_decl( _p_token:Token ) -> void:
 	# ATTRIBUTE_DECL = attribute ident | "</tt>ident<tt>" ;
-	var frame:StackFrame = stack.top()
+	#var frame:StackFrame = stack.top()
 
 	var token:Token = reader.get_token()
-	check_token_t(token, &"attribute")
+	want_token_t(token, &"attribute")
 
 	token = reader.get_token()
 	match token.type:
@@ -694,7 +726,7 @@ func parse_attribute_decl( p_token:Token ):
 		_: syntax_error(token, "Wanted 'ident | string_constant'")
 
 	token = reader.get_token()
-	check_token_t(token, &";")
+	want_token_t(token, &";")
 	return end_frame()
 #endregion Attribute Decl
 
@@ -706,14 +738,14 @@ func parse_attribute_decl( p_token:Token ):
 # │  |_| \_, | .__/\___| |___/\___\__|_|
 # ╰──────|__/|_|─────────────────────────
 #region Type Decl
-func parse_type_decl( p_token:Token ):
+func parse_type_decl( p_token:Token ) -> void:
 	#type_decl = ( table | struct ) ident [metadata] { field_decl+ }\
 	var frame:StackFrame = stack.top()
 
 	var decl_type:StringName = frame.data.get(&"decl_type", StringName())
 
 	if frame.data.get(&"next") == null:
-		var token = reader.get_token()
+		var token:Token = reader.get_token()
 		if token.t not in [&'table',&'struct']:
 			syntax_error(token, "wanted ( table | struct )")
 		else:
@@ -721,7 +753,7 @@ func parse_type_decl( p_token:Token ):
 			frame.data[&"decl_type"] = token.t
 
 		token = reader.get_token()
-		check_token_type(token, Token.Type.IDENT )
+		want_token_type(token, Token.Type.IDENT )
 		# add token to appropriate array
 		match decl_type:
 			&"struct": struct_types.append(token.t)
@@ -738,9 +770,9 @@ func parse_type_decl( p_token:Token ):
 		# can immediately continue
 
 	if frame.data.get(&'next') == &'{':
-		var token = reader.get_token()
+		var token:Token = reader.get_token()
 		if token.eof():return
-		check_token_t( token, &"{" )
+		want_token_t( token, &"{" )
 		frame.data[&'next'] = &'field_decl'
 
 		# update p_token to continue
@@ -751,7 +783,7 @@ func parse_type_decl( p_token:Token ):
 		if p_token.t != &"}":
 			stack.push( StackFrame.new( StackFrame.Type.FIELD_DECL, {&"decl_type":decl_type} ) )
 			return
-		reader.get_token() # Consume the }
+		reader.adv_token(p_token) # Consume the }
 		end_frame()
 		return
 
@@ -768,7 +800,7 @@ func parse_type_decl( p_token:Token ):
 # │|___|_||_\_,_|_|_|_| |___/\___\__|_|
 # ╰─────────────────────────────────────
 #region Enum Decl
-func parse_enum_decl( p_token:Token ):
+func parse_enum_decl( p_token:Token ) -> void:
 	#enum_decl = ( enum ident:type | union ident ) metadata { commasep( enumval_decl ) }
 	var frame:StackFrame = stack.top()
 
@@ -800,7 +832,7 @@ func parse_enum_decl( p_token:Token ):
 		token = reader.peek_token()
 		if decl_type == &"enum":
 			if token.t == &":":
-				reader.get_token() # consume token.
+				reader.adv_token(token) # consume token.
 				stack.push( StackFrame.new( StackFrame.Type.TYPE, { &"decl_type":decl_type } ) )
 				return
 
@@ -814,7 +846,7 @@ func parse_enum_decl( p_token:Token ):
 		var token:Token = reader.get_token()
 		if token.eof(): return
 		frame.data[&'next'] = &'enumval_decl'
-		check_token_t(token, &"{")
+		want_token_t(token, &"{")
 		p_token = reader.peek_token()
 
 	if frame.data.get(&'next') == &'enumval_decl':
@@ -822,10 +854,10 @@ func parse_enum_decl( p_token:Token ):
 		# Newlines are ok at the beginning/end
 		if p_token.eof():return
 		if p_token.t == &"}":
-			reader.get_token() # Consume the '}'
+			reader.adv_token(p_token) # Consume the '}'
 			return end_frame()
 		if p_token.t == &',':
-			reader.get_token() # Consume the ','
+			reader.adv_token(p_token) # Consume the ','
 			p_token = reader.peek_token()
 
 		if check_token_type( p_token, Token.Type.IDENT ):
@@ -851,18 +883,18 @@ func parse_enum_decl( p_token:Token ):
 # │|_|_\___/\___/\__| |___/\___\__|_|
 # ╰───────────────────────────────────
 #region Root Decl
-func parse_root_decl( p_token:Token ):
+func parse_root_decl( _p_token:Token ) -> void:
 	# ROOT_DECL = root_type ident ;
-	var frame:StackFrame = stack.top()
+	#var frame:StackFrame = stack.top()
 
 	var token:Token = reader.get_token()
-	check_token_t(token, &"root_type")
+	want_token_t(token, &"root_type")
 
 	token = reader.get_token()
-	check_token_type(token, Token.Type.IDENT )
+	want_token_type(token, Token.Type.IDENT )
 
 	token = reader.get_token()
-	check_token_t(token, &";")
+	want_token_t(token, &";")
 	return end_frame()
 #endregion Root Decl
 
@@ -874,7 +906,7 @@ func parse_root_decl( p_token:Token ):
 # │|_| |_\___|_\__,_| |___/\___\__|_|
 # ╰───────────────────────────────────
 #region Field Decl
-func parse_field_decl( p_token:Token ):
+func parse_field_decl( p_token:Token ) -> void:
 	# field_decl = ident:type [ = scalar ] metadata;
 	var frame:StackFrame = stack.top()
 
@@ -897,7 +929,7 @@ func parse_field_decl( p_token:Token ):
 
 		token = reader.get_token()
 		if token.eof():return
-		check_token_t( token, &":")
+		want_token_t( token, &":")
 
 		frame.data[&"next"] = &"default"
 		stack.push( StackFrame.new( StackFrame.Type.TYPE,
@@ -909,10 +941,11 @@ func parse_field_decl( p_token:Token ):
 	if frame.data.get(&"next") == &"default":
 		frame.data[&"next"] = &"meta"
 		if p_token.t == &"=":
-			reader.get_token() # consume '='
+			reader.adv_token(p_token) # consume '='
 			var token:Token = reader.get_token()
 			var return_val:Dictionary = frame.data.get(&"return")
-			frame.data.erase(&"return")
+			if not frame.data.erase(&"return"):
+				Print.plog(LogLevel.ERROR, "&'return' was not found in frame data")
 			if return_val.get(&"field_type") == &"enum":
 				var enum_vals:Array[StringName] = enum_types.get(return_val.get(&"field_name"))
 				if not token.t in enum_vals:
@@ -932,7 +965,7 @@ func parse_field_decl( p_token:Token ):
 	# finish
 	if frame.data.get(&"next") == &";":
 		var token:Token = reader.get_token()
-		check_token_t(token, &";")
+		want_token_t(token, &";")
 		return end_frame()
 
 	syntax_error(p_token, "reached end of parse_type_decl(...)")
@@ -947,7 +980,7 @@ func parse_field_decl( p_token:Token ):
 # │|_|_\ .__/\__| |___/\___\__|_|
 # ╰────|_|────────────────────────
 #region Rpc Decl
-func parse_rpc_decl( p_token:Token ):
+func parse_rpc_decl( p_token:Token ) -> void:
 	syntax_warning( p_token, &"Unimplemented")
 	reader.adv_line()
 	return end_frame()
@@ -961,7 +994,7 @@ func parse_rpc_decl( p_token:Token ):
 # │|_|_\ .__/\__| |_|  |_\___|\__|_||_\___/\__,_|
 # ╰────|_|────────────────────────────────────────
 #region Rpc Method
-func parse_rpc_method( p_token:Token ):
+func parse_rpc_method( p_token:Token ) -> void:
 	syntax_warning( p_token, &"Unimplemented")
 	reader.adv_line()
 	return end_frame()
@@ -975,7 +1008,7 @@ func parse_rpc_method( p_token:Token ):
 # │  |_| \_, | .__/\___|
 # ╰──────|__/|_|─────────
 #region Type
-func parse_type( p_token:Token ):
+func parse_type( p_token:Token ) -> void:
 	# TYPE = bool | byte | ubyte | short | ushort | int | uint | float | long
 	#		| ulong | double | int8 | uint8 | int16 | uint16 | int32 | uint32
 	#		| int64 | uint64 | float32 | float64 | string
@@ -1008,10 +1041,10 @@ func parse_type( p_token:Token ):
 
 	# Simple parsing for enums
 	if decl_type == &"enum":
-		var token:Token = reader.get_token()
-		if not token.t in integer_types:
-			syntax_error( token, "Enum types must be an integral")
-		else: highlight_colour(token, plugin.opts.get_colour(Token.Type.TYPE))
+		p_token = reader.get_token()
+		if not p_token.t in integer_types:
+			syntax_error( p_token, "Enum types must be an integral")
+		else: highlight_colour(p_token, plugin.opts.get_colour(Token.Type.TYPE))
 		return end_frame()
 
 
@@ -1060,7 +1093,7 @@ func parse_type( p_token:Token ):
 			token = reader.get_token()
 
 	# Close out the brackets.
-	check_token_t(token, &"]")
+	want_token_t(token, &"]")
 	return end_frame()
 #endregion Type
 
@@ -1072,7 +1105,7 @@ func parse_type( p_token:Token ):
 # │|___|_||_\_,_|_|_|_\_/\__,_|_| |___/\___\__|_|
 # ╰───────────────────────────────────────────────
 #region Enumval Decl
-func parse_enumval_decl( p_token:Token ):
+func parse_enumval_decl( p_token:Token ) -> void:
 	# ENUMVAL_DECL = ident [ = integer_constant ]
 	var frame:StackFrame = stack.top()
 
@@ -1116,21 +1149,21 @@ func parse_enumval_decl( p_token:Token ):
 # │|_|  |_\___|\__\__,_\__,_\__,_|\__\__,_|
 # ╰─────────────────────────────────────────
 #region Metadata
-func parse_metadata( p_token:Token ):
+func parse_metadata( p_token:Token ) -> void:
 	#metadata = [ ( commasep( ident [:single_value ] ) ) ]
 	# single_value = scalar | string_constant
 	var frame:StackFrame = stack.top()
 
 	if frame.data.get(&"next") == null:
 		var token:Token = reader.get_token()
-		check_token_t( token, &"(" )
+		want_token_t( token, &"(" )
 		frame.data[&"next"] = &"continue"
 
 	if frame.data.get(&"next") == &"continue":
 		var token:Token = reader.get_token()
 
 		if token.t == &")": return end_frame()
-		check_token_type(token, Token.Type.IDENT )
+		want_token_type(token, Token.Type.IDENT )
 
 		token = reader.get_token()
 		if token.t == &":":
@@ -1153,13 +1186,13 @@ func parse_metadata( p_token:Token ):
 # │|___/\__\__,_|_\__,_|_|
 # ╰──────────────────────────
 #region Scalar
-func parse_scalar( p_token:Token ):
+func parse_scalar( p_token:Token ) -> void:
 	# SCALAR = boolean_constant | integer_constant | float_constant
-	var this_frame:StackFrame = stack.top()
+	#var this_frame:StackFrame = stack.top()
 
-	var token:Token = reader.get_token()
-	if token.type == Token.Type.SCALAR:
-		reader.get_token()
+	p_token = reader.get_token()
+	if p_token.type == Token.Type.SCALAR:
+		reader.adv_token(p_token)
 		return end_frame()
 	#if token.t in user_enum_vals:
 		#token.type = Token.Type.SCALAR
@@ -1168,8 +1201,7 @@ func parse_scalar( p_token:Token ):
 		#return end_frame()
 	#syntax_error( token, "Wanted Token.Type.SCALAR" )
 	reader.adv_line()
-	end_frame()
-	return false
+	return end_frame()
 #endregion Scalar
 
 
@@ -1180,7 +1212,7 @@ func parse_scalar( p_token:Token ):
 # │ \___/|_.__// \___\__|\__|
 # ╰──────────|__/─────────────
 #region Object
-func parse_object( p_token:Token ):
+func parse_object( p_token:Token ) -> void:
 	syntax_warning( p_token, &"Unimplemented" )
 	reader.adv_line()
 	return end_frame()
@@ -1194,7 +1226,7 @@ func parse_object( p_token:Token ):
 # │|___/_|_||_\__, |_\___|   \_/\__,_|_|\_,_\___|
 # ╰───────────|___/───────────────────────────────
 #region Single Value
-func parse_single_value( p_token:Token ):
+func parse_single_value( p_token:Token ) -> void:
 	syntax_warning( p_token, &"Unimplemented" )
 	reader.adv_line()
 	return end_frame()
@@ -1208,7 +1240,7 @@ func parse_single_value( p_token:Token ):
 # │  \_/\__,_|_|\_,_\___|
 # ╰───────────────────────
 #region Value
-func parse_value( p_token:Token ):
+func parse_value( p_token:Token ) -> void:
 	syntax_warning( p_token, &"Unimplemented" )
 	reader.adv_line()
 	return end_frame()
@@ -1222,7 +1254,7 @@ func parse_value( p_token:Token ):
 # │ \___\___/_|_|_|_|_|_\__,_/__/\___| .__/
 # ╰──────────────────────────────────|_|────
 #region Commasep
-func parse_commasep( p_token:Token ):
+func parse_commasep( p_token:Token ) -> void:
 	# COMMASEP(x) = [ x ( , x )* ]
 	var frame:StackFrame = stack.top()
 	var arg_type:StackFrame.Type = frame.data.get(&"args")
@@ -1239,9 +1271,11 @@ func parse_commasep( p_token:Token ):
 		return
 	if frame.data.get(&"next") == &",":
 		var token:Token = reader.get_token()
-		frame.data.erase(&"return")
+		if not frame.data.erase(&"return"):
+			Print.plog(LogLevel.ERROR, "Unable to erase &'return' from frame.data")
 		if token.t != &",": return end_frame()
-		frame.data.erase(&"next")
+		if not frame.data.erase(&"next"):
+			Print.plog(LogLevel.ERROR, "Unable to erase &'next' from frame.data")
 		return
 
 	syntax_error(p_token, "Reached the end of parse_commasep(...)")
@@ -1257,7 +1291,7 @@ func parse_commasep( p_token:Token ):
 # │|_| |_|_\___| |___/_\_\\__\___|_||_/__/_\___/_||_| |___/\___\__|_|
 # ╰───────────────────────────────────────────────────────────────────
 #region File Extension Decl
-func parse_file_extension_decl( p_token:Token ):
+func parse_file_extension_decl( p_token:Token ) -> void:
 	syntax_warning( p_token, &"Unimplemented" )
 	reader.adv_line()
 	return end_frame()
@@ -1271,7 +1305,7 @@ func parse_file_extension_decl( p_token:Token ):
 # │|_| |_|_\___| |___\__,_\___|_||_\__|_|_| |_\___|_|   |___/\___\__|_|
 # ╰─────────────────────────────────────────────────────────────────────
 #region File Identifier Decl
-func parse_file_identifier_decl( p_token:Token ):
+func parse_file_identifier_decl( p_token:Token ) -> void:
 	syntax_warning( p_token, &"Unimplemented" )
 	reader.adv_line()
 	return end_frame()
@@ -1285,9 +1319,9 @@ func parse_file_identifier_decl( p_token:Token ):
 # │|___/\__|_| |_|_||_\__, |  \___\___/_||_/__/\__\__,_|_||_\__|
 # ╰───────────────────|___/──────────────────────────────────────
 #region String Constant
-func parse_string_constant( p_token:Token ):
-	var token:Token = reader.get_token()
-	check_token_type(token, Token.Type.STRING)
+func parse_string_constant( p_token:Token ) -> void:
+	p_token = reader.get_token()
+	want_token_type(p_token, Token.Type.STRING)
 	end_frame()
 #endregion String Constant
 
@@ -1301,13 +1335,13 @@ func parse_string_constant( p_token:Token ):
 #region Ident
 func parse_ident(p_token: Token) -> void:
 	# ident = [a-zA-Z_][a-zA-Z0-9_]*
-	var token := reader.get_token()
+	p_token = reader.get_token()
 
-	if check_token_type(token, Token.Type.IDENT ):
-		highlight(token)
+	if check_token_type(p_token, Token.Type.IDENT ):
+		highlight(p_token)
 		return end_frame()
 
-	syntax_error( token, "Wanted ( IDENT )" )
+	syntax_error( p_token, "Wanted ( IDENT )" )
 	end_frame()
 #endregion Ident
 func                        __Digit__________________              ()->void:pass
@@ -1361,12 +1395,12 @@ func                        __Hex_Integer_Constant___              ()->void:pass
 #region Integer Constant
 func parse_integer_constant(p_token: Token) -> void:
 	# INTEGER_CONSTANT = dec_integer_constant | hex_integer_constant
-	var token:Token = reader.get_token()
-	if reader.is_integer(token.t):
-		highlight(token)   # colour it
+	p_token = reader.get_token()
+	if reader.is_integer(p_token.t):
+		highlight(p_token)   # colour it
 		return end_frame()
 
-	syntax_error(token, "Wanted (dec_integer_constant | hex_integer_constant)")
+	syntax_error(p_token, "Wanted (dec_integer_constant | hex_integer_constant)")
 	end_frame()
 #endregion Integer Constant
 

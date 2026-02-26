@@ -241,9 +241,9 @@ func                        _________METHODS_________              ()->void:pass
 	#pass
 
 func get_opts() -> PackedStringArray:
-	var args:PackedStringArray = []
+	var args:Array = []
 	var plugin_script:Resource = FlatBuffersPlugin
-	var plugin_path = plugin_script.resource_path.get_base_dir()
+	var plugin_path:String = plugin_script.resource_path.get_base_dir()
 
 	## --- Basic Options ----------
 
@@ -273,6 +273,7 @@ func get_opts() -> PackedStringArray:
 	
 	args.append('--%s' % lang)
 
+	## Which Language to generate
 	if not root_type.is_empty():
 		args.append_array(["--root-type", root_type])
 
@@ -281,14 +282,17 @@ func get_opts() -> PackedStringArray:
 
 	## --- Object API Options ----------
 
+	## Generate object API
 	if gen_object_api:
 		args.append("--gen-object-api")
 
 	## --- GDScript Options ----------
 
+	## Generate Additional Debug Output
 	if gdscript_debug:
 		args.append("--gdscript-debug")
 
+	## Include the extension res folder for godot.fbs inclusion
 	if include_godot_fbs:
 		args.append_array(['-I', plugin_path.path_join('res').replace('res://', '')])
 
@@ -296,10 +300,10 @@ func get_opts() -> PackedStringArray:
 
 
 func get_include_paths() -> Array:
-	var paths:PackedStringArray = include_paths.duplicate()
+	var paths:Array = include_paths.duplicate()
 
 	var plugin_script:Resource = FlatBuffersPlugin
-	var plugin_path = plugin_script.resource_path.get_base_dir()
+	var plugin_path:String = plugin_script.resource_path.get_base_dir()
 	paths.append(plugin_path)
 
 	return paths

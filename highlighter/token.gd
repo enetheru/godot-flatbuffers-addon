@@ -32,7 +32,7 @@ static var defs:Dictionary = {
 
 var line:int ## Line Number
 var col:int ## Column Number
-var type:Type ## Token Type
+var type:Type = Type.UNKNOWN ## Token Type
 var t:String ## Token String
 
 ## returns [code]true[/code] of the toke type EOF?
@@ -43,25 +43,26 @@ func eol() -> bool: return type == Type.EOL
 
 
 ## Constructor
-func _init( line_or_dict = 0, _col:int = 0, _type:Type = Type.NULL, _t:String = "" ) -> void:
+func _init( line_or_dict:Variant = 0, _col:int = 0, _type:Type = Type.NULL, _t:String = "" ) -> void:
 	if line_or_dict is int:
 		line = line_or_dict; col = _col; type = _type; t = _t
 	elif line_or_dict is Dictionary:
-		from_dict( line_or_dict )
+		var dict:Dictionary = line_or_dict
+		from_dict( dict )
 	else:
-		var typename = type_string(typeof(line_or_dict))
+		var typename:String = type_string(typeof(line_or_dict))
 		assert(false, "Token._init( '%s', ... ) is not an int or dict" % typename )
 
 
 ## assignment from dictionary
-func from_dict( value:Dictionary ):
+func from_dict( value:Dictionary ) -> void:
 	# Validate and Assign
-	for key in defs.keys():
+	for key:StringName in defs.keys():
 		# Missing keys are not an error, assigning default
 		if not key in value: set(key, defs[key])
 		# different types is an error.
 		if typeof(defs[key]) != typeof(value[key]):
-			var typename = type_string(typeof(defs[key]))
+			var typename:String = type_string(typeof(defs[key]))
 			assert( false, "Invalid type '%s:%s' " % [key, typename ])
 			set(key, defs[key])
 		# value[key] passed validation.

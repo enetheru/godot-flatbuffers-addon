@@ -180,7 +180,6 @@ func                        ________PROPERTIES_______              ()->void:pass
 var _prefix:String
 var _target:Object
 var _target_file:String # from what I can tell, the category for the script settings is the filename
-var _helper_group:StringName = &"settings-helper"
 
 ## I need to keep a map of setting to prop.name in order to respect the grouping prefixes
 var setting_prop_map:Dictionary = {}
@@ -207,15 +206,13 @@ func _on_editor_settings_changed() -> void:
 func                        ________OVERRIDES________              ()->void:pass
 
 func _init( target:Object, prefix:String = "plugin/un-named" )-> void:
-	print("_init")
 	_prefix = prefix
 	_target = target
 	
-	var test_path:String = _target.get_script().resource_path
-	_target_file = test_path.get_file()
+	var target_path:String = _target.get_script().resource_path
+	_target_file = target_path.get_file()
 	
 	add_target_properties()
-	#add_helper_properties()
 
 	# when plugins are disabled, they are deleted.
 	@warning_ignore_start('return_value_discarded')
@@ -232,17 +229,18 @@ func                        _________METHODS_________              ()->void:pass
 
 func bitmask_array( value:int, max_width:int ) -> PackedByteArray:
 	var result:PackedByteArray
-	result.resize(max_width)
+	if result.resize(max_width) != OK: return []
 	for i:int in max_width:
 		result[i] = (value >> i) & 1
-	#result.reverse()
 	return result
 
 
 func get_usage_flags( bits:PackedByteArray ) -> PackedStringArray:
 	var result:PackedStringArray
 	for i:int in bits.size():
-		if bits[i]: result.push_back(UsageFlags.find_key(i+1))
+		var value:String = str(UsageFlags.find_key(i+1))
+		if bits[i]:
+			if not result.push_back(value): break
 	return result
 
 
@@ -250,7 +248,6 @@ func get_usage_flags( bits:PackedByteArray ) -> PackedStringArray:
 func add_target_properties() -> void:
 	print("add_target_properties")
 	
-	var output_string:String
 	var category:String
 	var group:String
 	var group_prefix:String
@@ -265,13 +262,13 @@ func add_target_properties() -> void:
 	
 	for property:Dictionary in _target.get_property_list():
 		var property_name:String = property.name
-		print("\nproperty.name: ", property.name)
+		print("\nproperty.name: ", property_name)
 		var property_type:int = property.type
-		print("property.type: ", type_string(property.type))
+		print("property.type: ", type_string(property_type))
 		var property_hint:int = property.hint
 		print("property.hint: ", HintEnum.find_key(property_hint))
 		var hint_string:String = property.hint_string
-		print("property.hint_string: ", property.hint_string)
+		print("property.hint_string: ", hint_string)
 		
 		var usage:int = property.usage
 		var usage_bits := bitmask_array(usage, 30)
@@ -415,7 +412,7 @@ func update_target() -> void:
 
 func inspect_target() -> void:
 	print("inspect_target")
-	EditorInterface.inspect_object.bind(_target)
+	EditorInterface.inspect_object(_target)
 
 #                 ███████ ████████  █████  ████████ ██  ██████                 #
 #                 ██         ██    ██   ██    ██    ██ ██                      #
@@ -443,7 +440,11 @@ static func get_all_plugins_info( only_loaded:bool = false) -> Array[Dictionary]
 		return plugins_info
 
 	# Get list of subdirectories (plugin folders)
-	dir.list_dir_begin()
+	var err:Error = dir.list_dir_begin()
+	if err != OK:
+		push_warning("%S.list_dir_begin() (Error: %s)" % [dir, error_string(err)])
+		return plugins_info
+		
 	var folder_name: String = dir.get_next()
 	while folder_name != "":
 		if dir.current_is_dir():
@@ -451,34 +452,34 @@ static func get_all_plugins_info( only_loaded:bool = false) -> Array[Dictionary]
 			var cfg_path: String = plugin_path.path_join("plugin.cfg")
 
 			if only_loaded and cfg_path not in enabled_plugins:
-				folder_name = dir.get_next()
-				continue
+				folder_name = dir.get_next(); continue
 
 			if FileAccess.file_exists(cfg_path):
 				var config: ConfigFile = ConfigFile.new()
-				var err: int = config.load(cfg_path)
-				if err == OK:
-					var config_props: Dictionary = {}
+				err = config.load(cfg_path)
+				if err != OK:
+					push_warning("Failed to load " + cfg_path + " (error: " + error_string(err) + ")")
+					folder_name = dir.get_next(); continue
+					
+				var config_props: Dictionary = {}
 
-					var keys: PackedStringArray = config.get_section_keys("plugin")
-					for key in keys:
-						config_props[key] = config.get_value("plugin", key)
+				var keys: PackedStringArray = config.get_section_keys("plugin")
+				for key in keys:
+					config_props[key] = config.get_value("plugin", key)
 
-					plugins_info.append({
-						"path": plugin_path,
-						"config": config_props,
-						"enabled": plugin_path in enabled_plugins
-					})
-				else:
-					push_warning("Failed to load " + cfg_path + " (error: " + str(err) + ")")
+				plugins_info.append({
+					"path": plugin_path,
+					"config": config_props,
+					"enabled": plugin_path in enabled_plugins
+				})
 
 		folder_name = dir.get_next()
 	dir.list_dir_end()
 	return plugins_info
 
 
-# Buttons for callables that point to scripts
-# FIXME These dont serialise to editor-settings properly, and once set cannot be unset
+## Buttons for callables that point to scripts
+## FIXME These dont serialise to editor-settings properly, and once set cannot be unset
 static func add_callable_as_button(
 			path:String,
 			callable:Callable,

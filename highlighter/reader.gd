@@ -1,13 +1,11 @@
 const Parser = preload("uid://dsj2eh2lfm2sg")
 const Token = preload('uid://cvcd6kyaa4f1a')
-const REGEX = preload('uid://btk3lhtry00ct')
+const RegExList = preload('uid://btk3lhtry00ct')
 
-static var Regex :
-	get():
-		if Regex == null: Regex = REGEX.new()
-		return Regex
+static var regex_list := RegExList.new()
 
-func print_bright( _value ):
+# Highlight for debugging.
+func print_bright( _value:String ) -> void:
 	print_rich( "[b][color=yellow]%s[/color][/b]" % [_value] )
 
 # ██████  ███████  █████  ██████  ███████ ██████
@@ -26,9 +24,9 @@ func print_bright( _value ):
 #  |___/_\__, |_||_\__,_|_/__/
 # -------|___/-----------------
 
-signal new_token( token : Token )
-signal newline( ln, p )
-signal endfile( ln, p )
+signal new_token( token:Token )
+signal newline( ln:int, p:int )
+signal endfile( ln:int, p:int )
 
 # MARK: Properties
 #   ___                       _   _
@@ -42,37 +40,37 @@ signal endfile( ln, p )
 var parser:Parser
 
 ## A list of word separation characters
-var word_separation : Array = [' ', '\t', '\n', '{','}', ':', ';', ',','=',
+var word_separation:Array = [' ', '\t', '\n', '{','}', ':', ';', ',','=',
 '(', ')', '[', ']' ]
 
 ## A list of whitespace characters
-var whitespace : Array = [' ', '\t', '\n']
+var whitespace:Array = [' ', '\t', '\n']
 
 ## A list of punctuation characters
-var punc : Array = [',', '.', ':', ';', '[', ']', '{', '}', '(', ')', '=']
+var punc:Array = [',', '.', ':', ';', '[', ']', '{', '}', '(', ')', '=']
 
 ## The text to parse
-var text : String
+var text:String
 
 ## cursor position for each line start
-var line_index : Array[int] = [0]
+var line_index:Array[int] = [0]
 
 ## Cursor position in file
-var cursor_p : int = 0
+var cursor_p:int = 0
 
 ## Cursor position in line
-var cursor_lp : int = 0
+var cursor_lp:int = 0
 
 ## Current line number
-var line_n : int = 0
+var line_n:int = 0
 
 ## When updating chunks of a larger source file, what line does this chunk start on.
-var line_start : int
+var line_start:int
 
 func _init( parser_ref:Parser ) -> void:
 	if parser_ref:
 		parser = parser_ref
-	if not Regex: Regex = REGEX.new()
+	if not regex_list: regex_list = RegExList.new()
 
 
 func _to_string() -> String:
@@ -87,7 +85,7 @@ func _to_string() -> String:
 	},'\t', false)
 
 
-func reset( text_ : String, line_i : int = 0 ):
+func reset( text_:String, line_i:int = 0 ) -> void:
 	text = text_
 	line_index = [0]
 	cursor_p = 0
@@ -103,7 +101,7 @@ func reset( text_ : String, line_i : int = 0 ):
 #  \__,_\__,_|\_/ ___
 # ---------------|___|-
 
-func adv( dist : int = 1 ) -> void:
+func adv( dist:int = 1 ) -> void:
 	if cursor_p >= text.length(): return # dont advance further than length
 	for i in dist:
 		cursor_p += 1
@@ -118,16 +116,18 @@ func adv( dist : int = 1 ) -> void:
 		newline.emit( line_n, cursor_p )
 		break
 
-
+## Advance the the reader until we reach a line break.
 func adv_line() -> void:
 	adv( text.length() ) # adv automatically stops on a line break.
 
 
-func adv_whitespace():
+## Advance the the reader while we are detecting whitespace
+func adv_whitespace() -> void:
 	while peek_char() in whitespace and not at_end():
 		adv()
 
-func adv_token( token : Token ):
+## Advance the the reader the length of the given token
+func adv_token( token:Token ) -> void:
 	adv( token.t.length() )
 
 # MARK: peek_
@@ -137,7 +137,7 @@ func adv_token( token : Token ):
 #  | .__/\___\___|_\_\ ___
 # -|_|----------------|___|-
 
-func peek_char( offset : int = 0 ) -> String:
+func peek_char( offset:int = 0 ) -> String:
 	if cursor_p + offset < text.length():
 		return text[cursor_p + offset]
 	else:
@@ -147,10 +147,10 @@ func peek_char( offset : int = 0 ) -> String:
 func peek_word() -> String:
 	adv_whitespace()
 	# include . if not starting with a number
-	var separators = word_separation
+	var separators:Array = word_separation.duplicate(true)
 	if not is_integer(peek_char()): separators = separators + ['.']
 
-	var length : int = 0
+	var length:int = 0
 	while not peek_char(length) in separators:
 		length += 1
 	return text.substr( cursor_p, length )
@@ -158,7 +158,7 @@ func peek_word() -> String:
 
 func peek_string() -> String:
 	if peek_char() != '"': return '' # fail if not start with quotes.
-	var length : int = 0
+	var length:int = 0
 	while true:
 		length += 1
 		if peek_char(length) == '\n': return '"' # fail on eol or eof
@@ -168,16 +168,14 @@ func peek_string() -> String:
 				break
 	return text.substr( cursor_p, length )
 
-	print_bright( peek_char() )
-	return peek_line()
 
-func peek_line( offset : int = 0 ) -> String:
-	var eol = text.find('\n', cursor_p + offset)
+func peek_line( offset:int = 0 ) -> String:
+	var eol:int = text.find('\n', cursor_p + offset)
 	return text.substr(cursor_p, eol - cursor_p)
 
 
-func peek_token( skip : bool = true ) -> Token:
-	var p_token : Token
+func peek_token( skip:bool = true ) -> Token:
+	var p_token:Token
 	while true:
 		adv_whitespace()
 		# end of file
@@ -230,33 +228,33 @@ func get_char() -> String:
 
 func get_word() -> String:
 	adv_whitespace()
-	var word = peek_word()
+	var word:String = peek_word()
 	adv( word.length() )
 	return word
 
 
-func get_line( offset : int = 0 ) -> String:
-	var start : int = cursor_p
+func get_line( _offset:int = 0 ) -> String:
+	var start:int = cursor_p
 	adv_line()
 	return text.substr( start, cursor_p - start )
 
 
-func get_token( skip : bool = true ) -> Token:
-	var token = peek_token( skip )
+func get_token( skip:bool = true ) -> Token:
+	var token:Token = peek_token( skip )
 	adv_token(token)
 	new_token.emit( token )
 	return token
 
 
 func get_string() -> String:
-	var string = peek_string()
+	var string:String = peek_string()
 	adv( string.length() )
 	return string
 
 
 func get_integer_constant() -> Token:
 	# Verify Starting position.
-	var p_token = peek_token()
+	var p_token:Token = peek_token()
 	if p_token.type != Token.Type.UNKNOWN:
 		return p_token
 
@@ -268,12 +266,12 @@ func get_integer_constant() -> Token:
 	#HEX_INTEGER_CONSTANT, # = [-+]?0[xX][:xdigit:]+
 	#XDIGIT, # [:xdigit:] = [0-9a-fA-F]
 
-	var first_char : String = "-+0123456789abcdefABCDEF"
-	var valid_chars = "xX0123456789abcdefABCDEF"
+	var first_char:String = "-+0123456789abcdefABCDEF"
+	var valid_chars:String = "xX0123456789abcdefABCDEF"
 	if peek_char() not in first_char: return p_token
 	p_token.type = Token.Type.SCALAR
 	# seek to the end and return our valid integer constant
-	var start : int = cursor_p
+	var start:int = cursor_p
 	while not at_end():
 		adv()
 		if peek_char() in valid_chars: continue
@@ -295,37 +293,37 @@ func at_end() -> bool:
 	return false
 
 
-func is_type( word : String )-> bool:
+func is_type( word:String )-> bool:
 	return word in parser.scalar_types
 
 
-func is_keyword( word : String ) -> bool:
+func is_keyword( word:String ) -> bool:
 	return word in parser.keywords
 
 
-func is_ident( word : String ) -> bool:
-	if Regex.ident.search(word):
+func is_ident( word:String ) -> bool:
+	if regex_list.ident.search(word):
 		return true
 	return false
 
 
 #scalar = boolean_constant | integer_constant | float_constant
-func is_scalar( word : String ) -> bool:
+func is_scalar( word:String ) -> bool:
 	return is_boolean( word ) or is_integer( word ) or is_float( word )
 
 
-func is_boolean( word : String ) -> bool:
+func is_boolean( word:String ) -> bool:
 	return word in ['true', 'false']
 
 
 # integer_constant = dec_integer_constant | hex_integer_constant
-func is_integer( word : String ) -> bool:
-	return (Regex.dec_integer_constant.search(word)
-		or Regex.hex_integer_constant.search(word))
+func is_integer( word:String ) -> bool:
+	return (regex_list.dec_integer_constant.search(word)
+		or regex_list.hex_integer_constant.search(word))
 
 
 #float_constant = dec_float_constant | hex_float_constant | special_float_constant
-func is_float( word : String ) -> bool:
-	return (Regex.dec_float_constant.search( word )
-		or Regex.hex_float_constant.search( word )
-		or Regex.special_float_constant.search( word ))
+func is_float( word:String ) -> bool:
+	return (regex_list.dec_float_constant.search( word )
+		or regex_list.hex_float_constant.search( word )
+		or regex_list.special_float_constant.search( word ))

@@ -2,8 +2,8 @@
 class_name FlatBuffersOpts
 extends Resource
 
-const Common = preload("uid://dyt7vhpvpirgf")
-const LogLevel = Common.LogLevel
+const Print = preload("uid://cbluyr4ifn8g3")
+const LogLevel = Print.LogLevel
 const Token = preload("uid://cvcd6kyaa4f1a")
 
 var editor_settings := EditorInterface.get_editor_settings()
@@ -12,9 +12,13 @@ var editor_settings := EditorInterface.get_editor_settings()
 ## A variable to help me turn on and off debug features and tests.
 var debug:bool = true
 
-@export_group("flatc Compiler")
-@export_custom(PROPERTY_HINT_ARRAY_TYPE, "FlatBuffersGeneratorOpts")
-var compile_configs:Array[FlatBuffersGeneratorOpts] = [preload("uid://b8vn3e2cuhqy3")]
+#@export_group("GeneratorConfigs", 'config_')
+
+#@export_custom(PROPERTY_HINT_ARRAY_TYPE, "FlatBuffersGeneratorOpts")
+var config_main:FlatBuffersGeneratorOpts = preload("uid://b8vn3e2cuhqy3")
+
+#@export_custom(PROPERTY_HINT_ARRAY_TYPE, "FlatBuffersGeneratorOpts")
+var config_list:Array[FlatBuffersGeneratorOpts] = [preload("uid://b8vn3e2cuhqy3")]
 
 
 # │ ___    _ _ _           _
@@ -26,6 +30,7 @@ var compile_configs:Array[FlatBuffersGeneratorOpts] = [preload("uid://b8vn3e2cuh
 @export_custom( PROPERTY_HINT_ENUM_SUGGESTION,
 	"SILENT:0,CRITICAL:1,ERROR:2,WARNING:3,NOTICE:4,DEBUG:5,TRACE:6")
 var editorlog_verbosity:int = 0
+
 
 # │ _  _ _      _   _   _ _      _   _
 # │| || (_)__ _| |_| |_| (_)__ _| |_| |_

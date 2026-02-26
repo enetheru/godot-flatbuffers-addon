@@ -4,8 +4,8 @@ extends EditorPlugin
 
 func                        _________IMPORTS_________              ()->void:pass
 
-const Common = preload("uid://dyt7vhpvpirgf")
-const LogLevel = Common.LogLevel
+const Print = preload("uid://cbluyr4ifn8g3")
+const LogLevel = Print.LogLevel
 
 const SettingsHelper = preload('uid://bqe6tk0yrwq8u')
 var settings_mgr:SettingsHelper
@@ -35,8 +35,6 @@ static var _prime:FlatBuffersPlugin
 
 var opts := FlatBuffersOpts.new()
 
-var flatc_opts := FlatBuffersGeneratorOpts.new()
-
 var highlighter:SchemaHighlighter
 
 var context_menus:Dictionary[EditorContextMenuPlugin.ContextMenuSlot,EditorContextMenuPlugin]
@@ -60,17 +58,17 @@ func _init() -> void:
 		EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_SCRIPT_EDITOR:MyScriptTabMenu.new(),
 		EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_SCRIPT_EDITOR_CODE:MyCodeEditMenu.new(),
 	}
-	print_log( LogLevel.TRACE, "%s._init() - Completed" % name )
+	Print.plog( LogLevel.TRACE, "%s._init() - Completed" % name )
 
 
 func _enter_tree() -> void:
-	print_log( LogLevel.TRACE, "%s._enter_tree()" % name )
+	Print.plog( LogLevel.TRACE, "%s._enter_tree()" % name )
 	
 	highlighter = SchemaHighlighter.new(self)
 	EditorInterface.get_script_editor().register_syntax_highlighter( highlighter )
 
 	# Right Click Context Menu's
-	for key in context_menus.keys():
+	for key:EditorContextMenuPlugin.ContextMenuSlot in context_menus.keys():
 		add_context_menu_plugin( key, context_menus[key] )
 		
 	# Fix up the text file extensions list.	
@@ -82,15 +80,14 @@ func _enter_tree() -> void:
 		ext_list.append('fbs')
 		editor_settings.set_setting(setting_string, ','.join(ext_list))
 		# Force filesystem scan to refresh the dock
-		var filesystem = EditorInterface.get_resource_filesystem()
-		filesystem.scan()  # This starts an async scan
+		EditorInterface.get_resource_filesystem().scan()
 
 
 func _exit_tree() -> void:
-	print_log( LogLevel.TRACE, "%s._exit_tree()" % name )
+	Print.plog( LogLevel.TRACE, "%s._exit_tree()" % name )
 	
 	# Right Click Context Menu's
-	for menu in context_menus.values():
+	for menu:EditorContextMenuPlugin in context_menus.values():
 		remove_context_menu_plugin( menu )
 	
 	EditorInterface.get_script_editor().unregister_syntax_highlighter( highlighter )
@@ -104,26 +101,25 @@ func _exit_tree() -> void:
 		ext_list.erase('fbs')
 		editor_settings.set_setting(setting_string, ','.join(ext_list))
 		# Force filesystem scan to refresh the dock
-		var filesystem = EditorInterface.get_resource_filesystem()
-		filesystem.scan()  # This starts an async scan
+		EditorInterface.get_resource_filesystem().scan()
 
 
 func _get_plugin_name() -> String:
-	print_log( LogLevel.TRACE, "%s._get_plugin_name()" % name )
+	Print.plog( LogLevel.TRACE, "%s._get_plugin_name()" % name )
 	return plugin_name
 
 
 func _get_plugin_icon() -> Texture2D:
-	print_log( LogLevel.TRACE, "%s._get_plugin_icon()" % name )
+	Print.plog( LogLevel.TRACE, "%s._get_plugin_icon()" % name )
 	return ICON_BW_TINY
 
 
 func _enable_plugin() -> void:
-	print_log( LogLevel.TRACE, "%s._enable_plugin()" % name )
+	Print.plog( LogLevel.TRACE, "%s._enable_plugin()" % name )
 
 
 func _disable_plugin() -> void:
-	print_log( LogLevel.TRACE, "%s._disable_plugin()" % name )
+	Print.plog( LogLevel.TRACE, "%s._disable_plugin()" % name )
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -142,7 +138,7 @@ func                        _________METHODS_________              ()->void:pass
 func                        ________FLATC_EXE________              ()->void:pass
 
 func flatc_multi( paths:Array, config:FlatBuffersGeneratorOpts ) -> Array:
-	print_log( LogLevel.TRACE, "%s.flatc_multi(%s, %s)" % [name, paths, config.name] )
+	Print.plog( LogLevel.TRACE, "%s.flatc_multi(%s, %s)" % [name, paths, config.name] )
 	var results:Array
 	for path:String in paths:
 		if path.get_extension() == 'fbs':
@@ -151,18 +147,18 @@ func flatc_multi( paths:Array, config:FlatBuffersGeneratorOpts ) -> Array:
 
 
 func flatc_generate( schema_path:String, config:FlatBuffersGeneratorOpts ) -> Dictionary:
-	print_log( LogLevel.TRACE, "%s.flatc_generate(%s, %s)" % [name, schema_path, config.name] )
+	Print.plog( LogLevel.TRACE, "%s.flatc_generate(%s, %s)" % [name, schema_path, config.name] )
 	
 	# Make sure we have the flac compiler
 	var flatc_exe:String = config.flatc_exe
 	if not FileAccess.file_exists(flatc_exe):
-		var msg = "flatc compiler is not found at '%s'" % flatc_exe
+		var msg:String = "flatc compiler is not found at '%s'" % flatc_exe
 		push_error(msg)
 		return {'retcode':ERR_FILE_BAD_PATH, 'output': [msg]}
 
 	# Make sure we have the schema file
 	if not FileAccess.file_exists(schema_path):
-		var msg = "Missing Schema File: '%s'" % schema_path
+		var msg:String = "Missing Schema File: '%s'" % schema_path
 		push_error(msg)
 		return {'retcode':ERR_FILE_BAD_PATH, 'output': [msg] }
 
@@ -187,7 +183,7 @@ func flatc_generate( schema_path:String, config:FlatBuffersGeneratorOpts ) -> Di
 		print( JSON.stringify(report, "  ", false) )
 
 	var output:Array = []
-	var retcode = OS.execute( flatc_exe, args, output, true )
+	var retcode:int = OS.execute( flatc_exe, args, output, true )
 
 	report['retcode'] = retcode
 	report['output'] = '\n'.join(output).split('\n', false)
@@ -226,23 +222,27 @@ func                        _______RIGHT_CLICK_______              ()->void:pass
 
 #  NOTE A plugin instance can belong only to a single context menu slot.
 
+static func is_fbs_in_path_list(path_list:PackedStringArray) -> bool:
+	for path:String in path_list:
+			if path.get_extension() == 'fbs':
+				return true
+	return false
+
+
 # filesystem context menu
 # EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM
 class MyFileMenu extends EditorContextMenuPlugin:
 	# _popup_menu() and option callback will be called with list of paths of the
 	# currently selected files.
-	func _popup_menu(paths:PackedStringArray):
+	func _popup_menu(paths:PackedStringArray) -> void:
 		# Verify we have a fbs to call the menu on.
-		var present_menu:bool = false
-		for path:String in paths:
-			if path.get_extension() == 'fbs':
-				present_menu = true
-				break
-		if not present_menu:return
+		if not FlatBuffersPlugin.is_fbs_in_path_list(paths): return
 		
 		# Get the list of flatc configs
+		
 		var fbp := FlatBuffersPlugin._prime
-		var config_list:Array[FlatBuffersGeneratorOpts] = fbp.opts.compile_configs
+		var config_list:Array[FlatBuffersGeneratorOpts] = fbp.opts.config_list
+		config_list = ProjectSettings.get_setting('flatbuffers/GeneratorConfigs/config_list')
 		if config_list.is_empty(): config_list.append(preload("uid://b8vn3e2cuhqy3"))
 		
 		for config in config_list:
@@ -258,18 +258,24 @@ class MyFileCreateMenu extends EditorContextMenuPlugin:
 	# currently selected files.
 	# TODO, use this menu to enable generating a flatbuffer schema by loading
 	# and analysing a gdscript class for exported values.
-	func _popup_menu(paths):
+	func _popup_menu(_paths:PackedStringArray) -> void:
 		var fbp := FlatBuffersPlugin._prime
 		if fbp.opts.debug:
-			add_context_menu_item("create_flatbuffer_schema_from_object", func(thing): print( thing ), ICON_BW_TINY )
+			add_context_menu_item("create_flatbuffer_schema_from_object",
+				func(thing:Array) -> void: print( thing ),
+				ICON_BW_TINY )
+
 
 # CONTEXT_SLOT_SCRIPT_EDITOR
 # Context menu of Script editor's script tabs.
 class MyScriptTabMenu extends EditorContextMenuPlugin:
 	# _popup_menu() will be called with the path to the currently edited script,
 	# while option callback will receive reference to that script.
-	func _popup_menu(paths:PackedStringArray):
-		var fbp := FlatBuffersPlugin._prime
+	func _popup_menu(paths:PackedStringArray) -> void:
+		# Verify we have a fbs to call the menu on.
+		if not FlatBuffersPlugin.is_fbs_in_path_list(paths): return
+		
+		var _fbp := FlatBuffersPlugin._prime
 		#if paths[0].get_extension() == 'fbs':
 			#add_context_menu_item("flatc --gdscript", call_flatc_on_path.bind(
 					#paths[0], ['--gdscript'] ), ICON_BW_TINY )
@@ -291,36 +297,14 @@ class MyScriptTabMenu extends EditorContextMenuPlugin:
 class MyCodeEditMenu extends EditorContextMenuPlugin:
 	# _popup_menu() will be called with the path to the CodeEdit node.
 	# The option callback will receive reference to that node.
-	func _popup_menu( paths:PackedStringArray ):
+	func _popup_menu( paths:PackedStringArray ) -> void:
 		var fbp := FlatBuffersPlugin._prime
 		if not fbp.opts.debug: return
 		print("paths.size: ", paths.size() )
 		print("paths:\n\t", '\n\t'.join(paths) )
-		var code_edit:CodeEdit = Engine.get_main_loop().root.get_node(paths[0]);
+		var scene_tree:SceneTree = Engine.get_main_loop()
+		var code_edit:CodeEdit = scene_tree.root.get_node(paths[0]);
 		print("selected_text: '%s'" % code_edit.get_selected_text() )
-		add_context_menu_item("flatbuffers testing", func(thing): print( thing ), ICON_BW_TINY )
-
-
-#     ██████  ██████  ██ ███    ██ ████████     ██       ██████   ██████       #
-#     ██   ██ ██   ██ ██ ████   ██    ██        ██      ██    ██ ██            #
-#     ██████  ██████  ██ ██ ██  ██    ██        ██      ██    ██ ██   ███      #
-#     ██      ██   ██ ██ ██  ██ ██    ██        ██      ██    ██ ██    ██      #
-#     ██      ██   ██ ██ ██   ████    ██        ███████  ██████   ██████       #
-func                        ________PRINT_LOG________              ()->void:pass
-
-func print_trace( message:String ):
-	if opts.editorlog_verbosity < LogLevel.TRACE: return
-	var colour = opts.get_colour(LogLevel.TRACE).to_html()
-	print_rich( "[color=%s]%s[/color]" % [colour, message] )
-
-
-func print_log(level:LogLevel, message:String ) -> bool:
-	if opts.editorlog_verbosity < level: return false
-	var colour = opts.get_colour(level).to_html()
-	var padding = "".lpad(get_stack().size()-1, '\t') if level == LogLevel.TRACE else ""
-	print_rich( padding + "[color=%s]%s[/color]" % [colour, message] )
-	return true
-
-
-func log_level( level:LogLevel ) -> bool:
-	return opts.editorlog_verbosity >= level
+		add_context_menu_item("flatbuffers testing",
+			func(thing:Array) -> void: print( thing ), 
+			ICON_BW_TINY )

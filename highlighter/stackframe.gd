@@ -4,10 +4,11 @@
 # ██    ██ ██   ██ ██   ██ ██  ██  ██ ██  ██  ██ ██   ██ ██   ██
 #  ██████  ██   ██ ██   ██ ██      ██ ██      ██ ██   ██ ██   ██
 
+const StackFrame = preload("uid://c0ub8clj4bhhv")
 
 enum Type {
 	NONE, # so that SCHEMA isnt at zero which is conflated with bool
-	# schema grammer : https://flatbuffers.dev/flatbuffers_grammar.html
+	# schema grammer:https://flatbuffers.dev/flatbuffers_grammar.html
 	SCHEMA, # = include ( namespace_decl
 	#					| type_decl
 	#					| enum_decl
@@ -21,16 +22,16 @@ enum Type {
 	NAMESPACE_DECL, # = namespace ident ( . ident )* ;
 	ATTRIBUTE_DECL, # = attribute ident | "</tt>ident<tt>" ;
 	TYPE_DECL, # = ( table | struct ) ident metadata { field_decl+ }
-	ENUM_DECL, # = ( enum ident : type | union ident ) metadata { commasep( enumval_decl ) }
+	ENUM_DECL, # = ( enum ident:type | union ident ) metadata { commasep( enumval_decl ) }
 	ROOT_DECL, # = root_type ident ;
-	FIELD_DECL, # = ident : type [ = scalar ] metadata ;
+	FIELD_DECL, # = ident:type [ = scalar ] metadata ;
 	RPC_DECL, # = rpc_service ident { rpc_method+ }
-	RPC_METHOD, # = ident ( ident ) : ident metadata ;
+	RPC_METHOD, # = ident ( ident ):ident metadata ;
 	TYPE, # = bool | byte | ubyte | short | ushort | int | uint | float | long | ulong | double | int8 | uint8 | int16 | uint16 | int32 | uint32| int64 | uint64 | float32 | float64 | string | [ type ] | ident
 	ENUMVAL_DECL, # = ident [ = integer_constant ]
-	METADATA, # = [ ( commasep( ident [ : single_value ] ) ) ]
+	METADATA, # = [ ( commasep( ident [:single_value ] ) ) ]
 	SCALAR, # = boolean_constant | integer_constant | float_constant
-	OBJECT, # = { commasep( ident : value ) }
+	OBJECT, # = { commasep( ident:value ) }
 	SINGLE_VALUE, # = scalar | string_constant
 	VALUE, # = single_value | object | [ commasep( value ) ]
 	COMMASEP, #(x) = [ x ( , x )* ]
@@ -50,37 +51,37 @@ enum Type {
 	#BOOLEAN_CONSTANT, # = true | false
 }
 
-func _init( t : Type, b : Dictionary = {} ) -> void:
+func _init( t:Type, b:Dictionary = {} ) -> void:
 	type = t
-	for key in b.keys():
+	for key:Variant in b.keys():
 		bindings[key] = b[key]
 
 
-var type : Type
+var type:Type
 
-var bindings : Dictionary
+var bindings:Dictionary
 
-var data : Dictionary
+var data:Dictionary
 
 
 func _to_string() -> String:
-	var parts : Array = [ '/',
+	var parts:Array = [ '/',
 		Type.find_key(type),
 		JSON.stringify( bindings ),
 		JSON.stringify( data ) ]
 	return "".join(parts).replace(',',', ').replace('{','{ ').replace('}',' }')
 
 
-func duplicate( deep : bool ) -> Object:
-	var new_frame = new( type )
+func duplicate() -> Object:
+	var new_frame:StackFrame = new( type )
 	# NOTE: For some reason duplicate wasnt working for my dictionaries.
 	# https://github.com/godotengine/godot/issues/96627
-	for key in bindings.keys():
+	for key:Variant in bindings.keys():
 		new_frame.bindings[key] = bindings[key]
-	for key in data.keys():
+	for key:Variant in data.keys():
 		new_frame.data[key] = data[key]
 	return new_frame
 
 
-func bind( dict : Dictionary ):
+func bind( dict:Dictionary ) -> void:
 	bindings = dict
