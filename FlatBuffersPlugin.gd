@@ -11,7 +11,6 @@ const SettingsHelper = preload('uid://bqe6tk0yrwq8u')
 var settings_mgr:SettingsHelper
 
 # Supporting Scripts
-const GeneratorOpts = preload("uid://bf5ukybn2h3kd")
 const SchemaHighlighter = preload("uid://ddcfjoxe7i5jo")
 const Token = preload("uid://cvcd6kyaa4f1a")
 
@@ -42,7 +41,7 @@ var opts := FlatBuffersOpts.new()
 
 @export_custom( PROPERTY_HINT_NONE, "", 
 	SettingsHelper.SETTING_BASIC )
-var flatc_opts := GeneratorOpts.new()
+var flatc_opts := FlatBuffersGeneratorOpts.new()
 
 var highlighter:SchemaHighlighter
 

@@ -105,8 +105,8 @@ static var editor_settings:EditorSettings :
 
 var _prefix:String
 var _target:EditorPlugin
-
-var helper_group:StringName = &"settings-helper"
+var _dirty:bool = false
+var _helper_group:StringName = &"settings-helper"
 
 signal settings_changed( setting_name:StringName, value:Variant )
 
@@ -118,40 +118,13 @@ signal settings_changed( setting_name:StringName, value:Variant )
 func                        __________EVENTS_________              ()->void:pass
 
 func _on_editor_settings_changed() -> void:
-	for setting_name in editor_settings.get_changed_settings():
-		if not setting_name.begins_with(_prefix): continue
-		if setting_name.begins_with(_prefix.path_join(&"built-in")): continue
-		var prop_val:Variant = editor_settings.get(setting_name)
-		var prop_name:StringName = setting_name.trim_prefix(_prefix+ "/").replace('/', '_')
-		# try to set the target object property value.
-		if prop_name in _target.get_property_list().reduce(
-			func( prop_names:Array, prop_dict:Dictionary ) -> Array:
-				prop_names.append(prop_dict.name); return prop_names, [] ):
-					_target.set( prop_name, prop_val )
-		else:
-			printerr("property(%s) invalid for target(%s)" % [
-				prop_name, _target.name])
-		settings_changed.emit( prop_name, prop_val )
+	if _dirty: return
+	_dirty = true
+	update_target.call_deferred()
 
 
 func _on_target_tree_exiting() -> void:
 	editor_settings.settings_changed.disconnect( _on_editor_settings_changed )
-
-
-func _on_rebuild_pressed() -> void:
-	print( "Rebuilding Settings in '%s'" % _prefix )
-	erase_prefix( _prefix )
-	add_target_properties()
-	#add_helper_properties()
-
-
-func _on_erase_pressed() -> void:
-	print( "Erasing Settings in '%s'" % _prefix )
-	erase_prefix( _prefix )
-
-
-func _on_unload_pressed() -> void:
-	print("TODO implement plugin unload button.")
 
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
@@ -165,6 +138,7 @@ func _init( target:EditorPlugin, prefix:String = "plugin/un-named" )-> void:
 	_prefix = prefix
 	_target = target
 
+	# when plugins are disabled, they are deleted.
 	@warning_ignore_start('return_value_discarded')
 	_target.tree_exiting.connect( _on_target_tree_exiting, CONNECT_ONE_SHOT )
 	editor_settings.settings_changed.connect( _on_editor_settings_changed )
@@ -234,8 +208,7 @@ func get_all_plugins_info( only_loaded:bool = false) -> Array[Dictionary]:
 
 
 # Buttons for callables that point to scripts
-# I dont think are serialisable as a setting properly.
-# so they always set. I should check the settings resource.
+# FIXME These dont serialise to editor-settings properly, and once set cannot be unset
 static func add_callable_as_button(
 			path:String,
 			callable:Callable,
@@ -252,7 +225,6 @@ static func add_callable_as_button(
 
 ## Add all the properties as settings
 func add_target_properties() -> void:
-	print("Adding exported properties of '%s' to prefix: '%s'" % [_target, _prefix])
 	for property:Dictionary in _target.get_property_list():
 		# We're abusing the property usage here, but custom settings are always
 		# considered advanced so this flag isnt necessarily used for any other
@@ -261,11 +233,8 @@ func add_target_properties() -> void:
 			continue
 
 		var prop_name:String = property.get(&'name')
-		print("\tProperty: '%s'" % prop_name)
-		
 		var current_value:Variant = _target.get( prop_name )
-		print("\t\tCurrent_value '%s'" % current_value)
-		
+
 		# Optionally split on '_' and join with '/' for grouping.
 		var setting_name:StringName = property.get(&'name')
 		if property.usage & (PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP):
@@ -273,17 +242,16 @@ func add_target_properties() -> void:
 				2 if property.usage & PROPERTY_USAGE_SUBGROUP else 1))
 		
 		setting_name = _prefix.path_join( setting_name )
-		
+
 		# Handle TOOL_BUTTON hint
 		if current_value \
 		and property.type == TYPE_CALLABLE \
 		and property.hint & PROPERTY_HINT_TOOL_BUTTON:
-			print("Assigning Tool Button")
 			var button_func:Callable = current_value
 			var hint_string:String = property.hint_string
 			add_callable_as_button(setting_name, button_func, hint_string )
 			continue
-		
+
 		# Construct setting info.
 		var setting_info:Dictionary = {
 			&'name': setting_name,
@@ -291,48 +259,48 @@ func add_target_properties() -> void:
 			&'hint': property.hint,
 			&'hint_string': property.hint_string
 		}
-		
-		# update the settings.
-		print("\t\tSetting: '%s' = %s" % [setting_name, str(current_value)] )
-		if not editor_settings.has_setting(setting_name):
+
+		if editor_settings.has_setting(setting_name):
+			# apply the saved value
+			var setting_value:Variant = editor_settings.get_setting( setting_name )
+			if setting_value == current_value: continue
+			else: _target.set(prop_name, setting_value)
+		else:
+			# add the settings.
 			editor_settings.set_setting( setting_name, current_value )
-			editor_settings.set_initial_value(setting_name, current_value, true)
-		
-		# Incase our plugin has changed, update the setting
-		editor_settings.set_initial_value(setting_name, current_value, false)
-		editor_settings.add_property_info(setting_info)
+			editor_settings.add_property_info(setting_info)
+			editor_settings.set_initial_value(setting_name, current_value, false)
 
-		continue
+
+func update_target() -> void:
+	if not editor_settings.check_changed_settings_in_group(_prefix):
+		_dirty = false; return
+
+	for setting_name in editor_settings.get_changed_settings():
+		if not setting_name.begins_with(_prefix): continue
+		if setting_name.begins_with(_prefix.path_join(_helper_group)): continue
 		var prop_val:Variant = editor_settings.get(setting_name)
-		_target.set( prop_name, prop_val )
+		var prop_name:StringName = setting_name.trim_prefix(_prefix+ "/").replace('/', '_')
+		# try to set the target object property value.
+		if prop_name in _target.get_property_list().reduce(
+			func( prop_names:Array, prop_dict:Dictionary ) -> Array:
+				prop_names.append(prop_dict.name); return prop_names, [] ):
+					_target.set( prop_name, prop_val )
+		else:
+			printerr("property(%s) invalid for target(%s)" % [
+				prop_name, _target.name])
+
+		settings_changed.emit( prop_name, prop_val )
+
+	_dirty = false
 
 
-## Add some boilerplate settings.
-func add_helper_properties() -> void:
-	add_callable_as_button(
-		_prefix.path_join(helper_group).path_join(&"inspect"),
-		EditorInterface.inspect_object.bind(_target),
-		"Inspect EditorPlugin Instance" )
-
-	add_callable_as_button(
-		_prefix.path_join(helper_group).path_join(&"rebuild"),
-		_on_rebuild_pressed,
-		"Rebuild Settings" )
-		
-	add_callable_as_button(
-		_prefix.path_join(helper_group).path_join(&"erase"),
-		_on_erase_pressed,
-		"Erase Extension Prefix" )
-	
-	add_callable_as_button(
-		_prefix.path_join(helper_group).path_join(&"unload"),
-		_on_unload_pressed,
-		"Unload Extension" )
+func inspect_target() -> void:
+	EditorInterface.inspect_object.bind(_target)
 
 
 ## Erase all editor settings from a prefix
 static func erase_prefix( prefix:String ) -> void:
-	print("Scrubbing '%s/*' from editor configuration." % prefix )
 	for property in editor_settings.get_property_list():
 		# ignore properties outside of our prefix.
 		var setting_name:String = property.get(&'name')
@@ -346,5 +314,4 @@ static func erase_prefix( prefix:String ) -> void:
 		# there appears to be no way to change the property usage flags.
 		# this set's up a situation where once set, a callable cannot be unset.
 		
-		print( "Erasing: %s" % setting_name)
 		editor_settings.erase(setting_name)

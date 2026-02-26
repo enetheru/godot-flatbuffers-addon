@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="FlatBuffersPluginOpts" load_steps=2 format=3 uid="uid://btp0s7qy88o36"]
+[gd_resource type="Resource" script_class="FlatBuffersOpts" load_steps=2 format=3 uid="uid://btp0s7qy88o36"]
 
 [ext_resource type="Script" uid="uid://dx0weow7g6o44" path="res://addons/enetheru.flatbuffers-addon/scripts/FlatBuffersOpts.gd" id="1_e4pq5"]
 
