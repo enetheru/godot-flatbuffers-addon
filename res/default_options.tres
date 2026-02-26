@@ -5,6 +5,7 @@
 [resource]
 resource_name = "Default Flatbuffers Plugin Options"
 script = ExtResource("1_e4pq5")
+compile_configs = Array[Object]([])
 color_syntax_unknown = Color(0.8025, 0.81, 0.8225, 1)
 color_syntax_comment = Color(0.8025, 0.81, 0.8225, 0.5)
 color_syntax_keyword = Color(1, 0.44, 0.52, 1)

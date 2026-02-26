@@ -30,17 +30,11 @@ const plugin_name:String = "flatbuffers"
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-var editor_settings := EditorInterface.get_editor_settings()
-
 # Reference to self so we can do things since we are already instantiated.
 static var _prime:FlatBuffersPlugin
 
-@export_custom( PROPERTY_HINT_RESOURCE_TYPE, "FlatBuffersOpts", 
-	SettingsHelper.SETTING_BASIC )
 var opts := FlatBuffersOpts.new()
 
-@export_custom( PROPERTY_HINT_NONE, "", 
-	SettingsHelper.SETTING_BASIC )
 var flatc_opts := FlatBuffersGeneratorOpts.new()
 
 var highlighter:SchemaHighlighter
@@ -58,9 +52,7 @@ func                        ________OVERRIDES________              ()->void:pass
 func _init() -> void:
 	_prime = self
 	name = PluginName
-	settings_mgr = SettingsHelper.new(self, 'flatbuffers')
-
-	# FIXME update editor property docks/filesystem/textfile_extensions to include fbs
+	settings_mgr = SettingsHelper.new(opts, plugin_name)
 
 	context_menus = {
 		EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM: MyFileMenu.new(),
@@ -82,12 +74,16 @@ func _enter_tree() -> void:
 		add_context_menu_plugin( key, context_menus[key] )
 		
 	# Fix up the text file extensions list.	
+	var editor_settings := EditorInterface.get_editor_settings()
 	var setting_string:String = "docks/filesystem/textfile_extensions"
 	var textfile_extensions:String = editor_settings.get_setting(setting_string)
 	var ext_list:Array = textfile_extensions.split(",")
 	if not 'fbs' in ext_list:
 		ext_list.append('fbs')
 		editor_settings.set_setting(setting_string, ','.join(ext_list))
+		# Force filesystem scan to refresh the dock
+		var filesystem = EditorInterface.get_resource_filesystem()
+		filesystem.scan()  # This starts an async scan
 
 
 func _exit_tree() -> void:
@@ -100,12 +96,16 @@ func _exit_tree() -> void:
 	EditorInterface.get_script_editor().unregister_syntax_highlighter( highlighter )
 	
 	# Fix up the text file extensions list.	
+	var editor_settings := EditorInterface.get_editor_settings()
 	var setting_string:String = "docks/filesystem/textfile_extensions"
 	var textfile_extensions:String = editor_settings.get_setting(setting_string)
 	var ext_list:Array = textfile_extensions.split(",")
 	if 'fbs' in ext_list:
 		ext_list.erase('fbs')
 		editor_settings.set_setting(setting_string, ','.join(ext_list))
+		# Force filesystem scan to refresh the dock
+		var filesystem = EditorInterface.get_resource_filesystem()
+		filesystem.scan()  # This starts an async scan
 
 
 func _get_plugin_name() -> String:
@@ -134,7 +134,6 @@ func _disable_plugin() -> void:
 func                        _________METHODS_________              ()->void:pass
 
 
-
 #     ███████ ██       █████  ████████  ██████    ███████ ██   ██ ███████      #
 #     ██      ██      ██   ██    ██    ██         ██       ██ ██  ██           #
 #     █████   ██      ███████    ██    ██         █████     ███   █████        #
@@ -142,42 +141,46 @@ func                        _________METHODS_________              ()->void:pass
 #     ██      ███████ ██   ██    ██     ██████ ██ ███████ ██   ██ ███████      #
 func                        ________FLATC_EXE________              ()->void:pass
 
-func flatc_multi( paths:Array, args:Array ) -> Array:
-	print_log( LogLevel.TRACE, "%s.flatc_multi(%s, %s)" % [name, paths, args] )
+func flatc_multi( paths:Array, config:FlatBuffersGeneratorOpts ) -> Array:
+	print_log( LogLevel.TRACE, "%s.flatc_multi(%s, %s)" % [name, paths, config.name] )
 	var results:Array
 	for path:String in paths:
 		if path.get_extension() == 'fbs':
-			results.append( flatc_generate( path, args ) )
+			results.append( flatc_generate( path, config ) )
 	return results
 
 
-func flatc_generate( schema_path:String, args:Array ) -> Dictionary:
-	print_log( LogLevel.TRACE, "%s.flatc_generate(%s, %s)" % [name, schema_path, args] )
-	var flatc_exe:String = flatc_opts.flatc_exe
+func flatc_generate( schema_path:String, config:FlatBuffersGeneratorOpts ) -> Dictionary:
+	print_log( LogLevel.TRACE, "%s.flatc_generate(%s, %s)" % [name, schema_path, config.name] )
+	
 	# Make sure we have the flac compiler
+	var flatc_exe:String = config.flatc_exe
 	if not FileAccess.file_exists(flatc_exe):
 		var msg = "flatc compiler is not found at '%s'" % flatc_exe
 		push_error(msg)
 		return {'retcode':ERR_FILE_BAD_PATH, 'output': [msg]}
 
+	# Make sure we have the schema file
 	if not FileAccess.file_exists(schema_path):
 		var msg = "Missing Schema File: '%s'" % schema_path
 		push_error(msg)
 		return {'retcode':ERR_FILE_BAD_PATH, 'output': [msg] }
 
-	args.append_array(flatc_opts.get_opts())
-
-	# -o <path>
+	# Get the set of options from the config
+	var args:Array = config.get_opts()
+	
+	# the script will be generated in the res:// root if -o is not specified.
+	# A better defualt is to generate in place.
 	if not '-o' in args:
-		args.append_array([ "-o", schema_path.get_base_dir().replace('res://', './')])
+		args.append_array(['-o', schema_path.get_base_dir().replace('res://', './')])
 
 	# Lastly add the schema path
 	args.append( schema_path.replace('res://', './') )
 
 	var report:Dictionary = {
-		'schema': schema_path,
 		'flatc_path':flatc_exe,
 		'args':args,
+		'schema': schema_path,
 	}
 
 	if opts.debug or opts.editorlog_verbosity >= LogLevel.NOTICE:
@@ -210,8 +213,8 @@ func flatc_generate( schema_path:String, args:Array ) -> Dictionary:
 	return report
 
 
-static func generate( schema_path:String, args:Array ) -> Dictionary:
-	return _prime.flatc_generate( schema_path, args  )
+static func generate( schema_path:String, config:FlatBuffersGeneratorOpts ) -> Dictionary:
+	return _prime.flatc_generate( schema_path, config  )
 
 
 # ██████  ██  ██████  ██   ██ ████████      ██████ ██      ██  ██████ ██   ██  #
@@ -228,12 +231,24 @@ func                        _______RIGHT_CLICK_______              ()->void:pass
 class MyFileMenu extends EditorContextMenuPlugin:
 	# _popup_menu() and option callback will be called with list of paths of the
 	# currently selected files.
-	func _popup_menu(paths):
-		var fbp := FlatBuffersPlugin._prime
-		for path in paths:
+	func _popup_menu(paths:PackedStringArray):
+		# Verify we have a fbs to call the menu on.
+		var present_menu:bool = false
+		for path:String in paths:
 			if path.get_extension() == 'fbs':
-				add_context_menu_item("flatc --gdscript", fbp.flatc_multi.bind(['--gdscript']), ICON_BW_TINY  )
-				return
+				present_menu = true
+				break
+		if not present_menu:return
+		
+		# Get the list of flatc configs
+		var fbp := FlatBuffersPlugin._prime
+		var config_list:Array[FlatBuffersGeneratorOpts] = fbp.opts.compile_configs
+		if config_list.is_empty(): config_list.append(preload("uid://b8vn3e2cuhqy3"))
+		
+		for config in config_list:
+			var item_name:String = "FlatBuffers Generate: %s" % [config.name] 
+			add_context_menu_item(item_name, fbp.flatc_multi.bind(config), ICON_BW_TINY  )
+		# TODO when configs grow past three, add a submenu.
 
 
 # CONTEXT_SLOT_FILESYSTEM_CREATE
@@ -255,20 +270,20 @@ class MyScriptTabMenu extends EditorContextMenuPlugin:
 	# while option callback will receive reference to that script.
 	func _popup_menu(paths:PackedStringArray):
 		var fbp := FlatBuffersPlugin._prime
-		if paths[0].get_extension() == 'fbs':
-			add_context_menu_item("flatc --gdscript", call_flatc_on_path.bind(
-					paths[0], ['--gdscript'] ), ICON_BW_TINY )
-			if fbp.opts.debug:
-				add_context_menu_item("flatc --cpp", call_flatc_on_path.bind(
-						paths[0], ['--cpp'] ), ICON_BW_TINY )
-				add_context_menu_item("flatc --help", call_flatc_on_path.bind(
-						paths[0], ['--help'] ), ICON_BW_TINY )
-				add_context_menu_item("flatc --version", call_flatc_on_path.bind(
-						paths[0], ['--version'] ), ICON_BW_TINY )
+		#if paths[0].get_extension() == 'fbs':
+			#add_context_menu_item("flatc --gdscript", call_flatc_on_path.bind(
+					#paths[0], ['--gdscript'] ), ICON_BW_TINY )
+			#if fbp.opts.debug:
+				#add_context_menu_item("flatc --cpp", call_flatc_on_path.bind(
+						#paths[0], ['--cpp'] ), ICON_BW_TINY )
+				#add_context_menu_item("flatc --help", call_flatc_on_path.bind(
+						#paths[0], ['--help'] ), ICON_BW_TINY )
+				#add_context_menu_item("flatc --version", call_flatc_on_path.bind(
+						#paths[0], ['--version'] ), ICON_BW_TINY )
 
-	func call_flatc_on_path( _ignore, path:String, args:Array ) -> void:
-		var fbp := FlatBuffersPlugin._prime
-		fbp.flatc_generate( path, args )
+	#func call_flatc_on_path( _ignore, path:String, args:Array ) -> void:
+		#var fbp := FlatBuffersPlugin._prime
+		#fbp.flatc_generate( path, args )
 
 
 # CONTEXT_SLOT_SCRIPT_EDITOR_CODE

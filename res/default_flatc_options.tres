@@ -1,12 +1,10 @@
-[gd_resource type="Resource" load_steps=2 format=3 uid="uid://b8vn3e2cuhqy3"]
+[gd_resource type="Resource" script_class="FlatBuffersGeneratorOpts" load_steps=2 format=3 uid="uid://b8vn3e2cuhqy3"]
 
 [ext_resource type="Script" uid="uid://bf5ukybn2h3kd" path="res://addons/enetheru.flatbuffers-addon/scripts/FlatBuffersGeneratorOpts.gd" id="1_1037i"]
 
 [resource]
 resource_name = "Default Flatc Generator Opts"
 script = ExtResource("1_1037i")
+name = "Default Options"
 flatc_exe = "C:/Godot/Projects/Enetheru.flatbuffers-project/addons/enetheru.flatbuffers-extension/bin/flatc.exe"
-gen_all = true
-gen_object_api = true
-gdscript_debug = true
 metadata/_custom_type_script = "uid://bf5ukybn2h3kd"

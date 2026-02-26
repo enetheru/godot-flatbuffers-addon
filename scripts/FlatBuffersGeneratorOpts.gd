@@ -21,6 +21,8 @@ extends Resource
 ## [br]
 ## [color=goldenrod]TODO[/color] - Save to project settings.
 
+@export
+var name:String = 'UnNamed'
 
 ## The path to the flatc executable.
 @export_custom( PROPERTY_HINT_GLOBAL_FILE, "*.exe", PROPERTY_USAGE_DEFAULT)
@@ -125,6 +127,9 @@ func                        __Code_Generation_Opts___              ()->void:pass
 
 @export_category("Code Generation Options")
 
+@export_custom(PROPERTY_HINT_ENUM, "gdscript, csharp, cpp, json, bfbs")
+var lang:String = 'gdscript'
+
 @export
 ## (--root-type T) Select or override the default root_type
 var root_type: String
@@ -216,6 +221,8 @@ func                        __GDScript_Opts__________              ()->void:pass
 ## Adds some debugging print functions
 var gdscript_debug:bool = false
 
+@export
+var include_godot_fbs:bool = true
 
 #@export
 #var flatc_generate_pack_unpack:bool = false
@@ -263,6 +270,8 @@ func get_opts() -> PackedStringArray:
 		args.append_array(["--filename-suffix", filename_suffix])
 
 	## --- Code Generation Options ----------
+	
+	args.append('--%s' % lang)
 
 	if not root_type.is_empty():
 		args.append_array(["--root-type", root_type])
@@ -279,8 +288,9 @@ func get_opts() -> PackedStringArray:
 
 	if gdscript_debug:
 		args.append("--gdscript-debug")
-#
-	args.append_array(['-I', plugin_path.replace('res://', '')])
+
+	if include_godot_fbs:
+		args.append_array(['-I', plugin_path.path_join('res').replace('res://', '')])
 
 	return args
 
