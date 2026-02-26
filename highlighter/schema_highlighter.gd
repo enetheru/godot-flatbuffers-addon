@@ -23,6 +23,14 @@ const FrameStack = preload('uid://d3cyn1bbenwmo')
 const Parser = preload("uid://dsj2eh2lfm2sg")
 
 
+static var _opts:FlatBuffersOpts:
+	get(): 
+		if FlatBuffersPlugin._prime:
+			var opts := FlatBuffersPlugin._prime.opts
+			if opts: _opts = opts
+		return _opts
+	set(v):_opts = v
+
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
 # ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
@@ -217,7 +225,7 @@ func _update_cache() -> void:
 func                        _________METHODS_________              ()->void:pass
 
 func highlight( token:Token ) -> void:
-	line_dict[token.col] = { 'color':plugin.opts.get_colour( token.type ) }
+	line_dict[token.col] = { 'color':_opts.get_colour( token.type ) }
 	line_dict[token.col + token.t.length()] = {}
 	if not (parser.error_flag or parser.warning_flag):
 		get_text_edit().set_line_background_color(token.line, Color(0,0,0,0) )
@@ -231,8 +239,8 @@ func highlight_colour( token:Token, colour:Color ) -> void:
 
 func syntax_warning( token:Token, reason:String = "" ) -> void:
 	parser.warning_flag = true
-	var colour:Color = plugin.opts.get_colour(plugin.LogLevel.WARNING)
-	if plugin.opts.highlight_warning:
+	var colour:Color = _opts.get_colour(plugin.LogLevel.WARNING)
+	if _opts.highlight_warning:
 		get_text_edit().set_line_background_color(token.line, colour.blend(Color(0,0,0,.5)) )
 	else: line_dict[token.col] = { 'color':colour }
 	# TODO, if the token being warned about is on the line we are editing perhaps
@@ -245,8 +253,8 @@ func syntax_warning( token:Token, reason:String = "" ) -> void:
 
 func syntax_error( token:Token, reason:String = "" ) -> void:
 	parser.error_flag = true
-	var colour:Color = plugin.opts.get_colour(plugin.LogLevel.ERROR)
-	if plugin.opts.highlight_error:
+	var colour:Color = _opts.get_colour(plugin.LogLevel.ERROR)
+	if _opts.highlight_error:
 		get_text_edit().set_line_background_color(token.line, colour.blend(Color(0,0,0,.5)) )
 	else: line_dict[token.col] = { 'color':colour }
 	# TODO, if the token being warned about is on the line we are editing perhaps

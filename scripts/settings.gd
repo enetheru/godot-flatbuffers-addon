@@ -82,93 +82,18 @@
 ## removed the erase on exit, seemed buggy and prone to wipe my editor-settings
 ## entirely[br]
 ## Compared this script to the similar one from editor-tweaks, and merged some
-## differences, button code, enabled_plugins,
+## differences, button code, enabled_plugins.[br]
+## 2026-02-27 - Completely re-worked the script for ProjectSettings,
+## instead of EditorSettings.[br]
 
 ## Link for adding documentation tooltips to settings.
 ## very brute force.
 ## https://github.com/PiCode9560/Godot-Editor-Settings-Description/blob/main/editor_settings_description.gd
 
-enum HintEnum {
-	PROPERTY_HINT_NONE = 0,
-	PROPERTY_HINT_RANGE = 1,
-	PROPERTY_HINT_ENUM = 2,
-	PROPERTY_HINT_ENUM_SUGGESTION = 3,
-	PROPERTY_HINT_EXP_EASING = 4,
-	PROPERTY_HINT_LINK = 5,
-	PROPERTY_HINT_FLAGS = 6,
-	PROPERTY_HINT_LAYERS_2D_RENDER = 7,
-	PROPERTY_HINT_LAYERS_2D_PHYSICS = 8,
-	PROPERTY_HINT_LAYERS_2D_NAVIGATION = 9,
-	PROPERTY_HINT_LAYERS_3D_RENDER = 10,
-	PROPERTY_HINT_LAYERS_3D_PHYSICS = 11,
-	PROPERTY_HINT_LAYERS_3D_NAVIGATION = 12,
-	PROPERTY_HINT_LAYERS_AVOIDANCE = 37,
-	PROPERTY_HINT_FILE = 13,
-	PROPERTY_HINT_DIR = 14,
-	PROPERTY_HINT_GLOBAL_FILE = 15,
-	PROPERTY_HINT_GLOBAL_DIR = 16,
-	PROPERTY_HINT_RESOURCE_TYPE = 17,
-	PROPERTY_HINT_MULTILINE_TEXT = 18,
-	PROPERTY_HINT_EXPRESSION = 19,
-	PROPERTY_HINT_PLACEHOLDER_TEXT = 20,
-	PROPERTY_HINT_COLOR_NO_ALPHA = 21,
-	PROPERTY_HINT_OBJECT_ID = 22,
-	PROPERTY_HINT_TYPE_STRING = 23,
-	PROPERTY_HINT_NODE_PATH_TO_EDITED_NODE = 24,
-	PROPERTY_HINT_OBJECT_TOO_BIG = 25,
-	PROPERTY_HINT_NODE_PATH_VALID_TYPES = 26,
-	PROPERTY_HINT_SAVE_FILE = 27,
-	PROPERTY_HINT_GLOBAL_SAVE_FILE = 28,
-	PROPERTY_HINT_INT_IS_OBJECTID = 29,
-	PROPERTY_HINT_INT_IS_POINTER = 30,
-	PROPERTY_HINT_ARRAY_TYPE = 31,
-	PROPERTY_HINT_DICTIONARY_TYPE = 38,
-	PROPERTY_HINT_LOCALE_ID = 32,
-	PROPERTY_HINT_LOCALIZABLE_STRING = 33,
-	PROPERTY_HINT_NODE_TYPE = 34,
-	PROPERTY_HINT_HIDE_QUATERNION_EDIT = 35,
-	PROPERTY_HINT_PASSWORD = 36,
-	PROPERTY_HINT_TOOL_BUTTON = 39,
-	PROPERTY_HINT_ONESHOT = 40,
-	PROPERTY_HINT_GROUP_ENABLE = 42,
-	PROPERTY_HINT_INPUT_NAME = 43,
-	PROPERTY_HINT_FILE_PATH = 44,
-	PROPERTY_HINT_MAX = 45
-}
+const Print = preload("uid://cbluyr4ifn8g3")
+const LogLevel = Print.LogLevel
 
-# flag_name = bit position
-enum UsageFlags {
-	INVALID = 1,
-	PROPERTY_USAGE_STORAGE = 2,
-	PROPERTY_USAGE_EDITOR = 3,
-	PROPERTY_USAGE_INTERNAL = 4,
-	PROPERTY_USAGE_CHECKABLE = 5,
-	PROPERTY_USAGE_CHECKED = 6,
-	PROPERTY_USAGE_GROUP = 7,
-	PROPERTY_USAGE_CATEGORY = 8,
-	PROPERTY_USAGE_SUBGROUP = 9,
-	PROPERTY_USAGE_CLASS_IS_BITFIELD = 10,
-	PROPERTY_USAGE_NO_INSTANCE_STATE = 11,
-	PROPERTY_USAGE_RESTART_IF_CHANGED = 12,
-	PROPERTY_USAGE_SCRIPT_VARIABLE = 13,
-	PROPERTY_USAGE_STORE_IF_NULL = 14,
-	PROPERTY_USAGE_UPDATE_ALL_IF_MODIFIED = 15,
-	PROPERTY_USAGE_SCRIPT_DEFAULT_VALUE = 16,
-	PROPERTY_USAGE_CLASS_IS_ENUM = 17,
-	PROPERTY_USAGE_NIL_IS_VARIANT = 18,
-	PROPERTY_USAGE_ARRAY = 19,
-	PROPERTY_USAGE_ALWAYS_DUPLICATE = 20,
-	PROPERTY_USAGE_NEVER_DUPLICATE = 21,
-	PROPERTY_USAGE_HIGH_END_GFX = 22,
-	PROPERTY_USAGE_NODE_PATH_FROM_SCENE_ROOT = 23,
-	PROPERTY_USAGE_RESOURCE_NOT_PERSISTENT = 24,
-	PROPERTY_USAGE_KEYING_INCREMENTS = 25,
-	PROPERTY_USAGE_DEFERRED_SET_RESOURCE = 26,
-	PROPERTY_USAGE_EDITOR_INSTANTIATE_OBJECT = 27,
-	PROPERTY_USAGE_EDITOR_BASIC_SETTING = 28,
-	PROPERTY_USAGE_READ_ONLY = 28,
-	PROPERTY_USAGE_SECRET = 30,
-}
+
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
 # ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
@@ -194,7 +119,7 @@ signal settings_changed( setting_name:StringName, value:Variant )
 func                        __________EVENTS_________              ()->void:pass
 
 func _on_editor_settings_changed() -> void:
-	print("_on_editor_settings_changed")
+	Print.plog( LogLevel.TRACE, "_on_editor_settings_changed")
 	update_target.call_deferred()
 
 
@@ -227,26 +152,9 @@ func _init( target:Object, prefix:String = "plugin/un-named" )-> void:
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
-func bitmask_array( value:int, max_width:int ) -> PackedByteArray:
-	var result:PackedByteArray
-	if result.resize(max_width) != OK: return []
-	for i:int in max_width:
-		result[i] = (value >> i) & 1
-	return result
-
-
-func get_usage_flags( bits:PackedByteArray ) -> PackedStringArray:
-	var result:PackedStringArray
-	for i:int in bits.size():
-		var value:String = str(UsageFlags.find_key(i+1))
-		if bits[i]:
-			if not result.push_back(value): break
-	return result
-
-
 ## Add all the properties as settings
 func add_target_properties() -> void:
-	print("add_target_properties")
+	Print.plog( LogLevel.TRACE, "add_target_properties")
 	
 	var category:String
 	var group:String
@@ -262,21 +170,21 @@ func add_target_properties() -> void:
 	
 	for property:Dictionary in _target.get_property_list():
 		var property_name:String = property.name
-		print("\nproperty.name: ", property_name)
+		Print.plog( LogLevel.TRACE, "\nproperty.name: ", property_name)
 		var property_type:int = property.type
-		print("property.type: ", type_string(property_type))
+		Print.plog( LogLevel.TRACE, "property.type: ", type_string(property_type))
 		var property_hint:int = property.hint
-		print("property.hint: ", HintEnum.find_key(property_hint))
+		Print.plog( LogLevel.TRACE, "property.hint: ", Print.HintEnum.find_key(property_hint))
 		var hint_string:String = property.hint_string
-		print("property.hint_string: ", hint_string)
+		Print.plog( LogLevel.TRACE, "property.hint_string: ", hint_string)
 		
 		var usage:int = property.usage
-		var usage_bits := bitmask_array(usage, 30)
-		var usage_flags := get_usage_flags(usage_bits)
-		print("property.usage: ",  usage_flags )
+		var usage_bits := Print.bitmask_array(usage, 30)
+		var usage_flags := Print.get_usage_flags(usage_bits)
+		Print.plog( LogLevel.TRACE, "property.usage: ",  usage_flags )
 		
 		var property_value:Variant = _target.get(property_name)
-		print("value: ",  property_value )
+		Print.plog( LogLevel.TRACE, "value: ",  property_value )
 		
 		
 		if property.usage & PROPERTY_USAGE_CATEGORY:
@@ -320,7 +228,7 @@ func add_target_properties() -> void:
 		# failure to match a prefix reset's the prefix for that level.
 		if subgroup and subgroup_prefix:
 			if property_name.begins_with(subgroup_prefix):
-				print("matched subgroup_prefix")
+				Print.plog( LogLevel.TRACE, "matched subgroup_prefix")
 				setting_name = property_name.trim_prefix(subgroup_prefix)
 				trimmed = true
 				group_level = 2
@@ -332,7 +240,7 @@ func add_target_properties() -> void:
 		if group_level == 0:
 			if group_prefix:
 				if property_name.begins_with(group_prefix):
-					print("match group_prefix")
+					Print.plog( LogLevel.TRACE, "match group_prefix")
 					setting_name = property_name.trim_prefix(group_prefix)
 					trimmed = true
 					group_level = 1
@@ -353,20 +261,20 @@ func add_target_properties() -> void:
 		var setting_path:String = '/'.join(parts)
 		var setting_full:String = setting_path.path_join(setting_name)
 		
-		print("Category: ", category)
-		print("Group: ", [group, group_prefix])
-		print("SubGroup: ", [subgroup, subgroup_prefix])
-		print("group_level: ", group_level)
-		print("Trimmed: ", trimmed)
-		print("Setting Path: ", setting_path)
-		print("Setting Name: ", setting_name)
-		print("Setting_full: ", setting_full)
+		Print.plog( LogLevel.TRACE, "Category: ", category)
+		Print.plog( LogLevel.TRACE, "Group: ", [group, group_prefix])
+		Print.plog( LogLevel.TRACE, "SubGroup: ", [subgroup, subgroup_prefix])
+		Print.plog( LogLevel.TRACE, "group_level: ", group_level)
+		Print.plog( LogLevel.TRACE, "Trimmed: ", trimmed)
+		Print.plog( LogLevel.TRACE, "Setting Path: ", setting_path)
+		Print.plog( LogLevel.TRACE, "Setting Name: ", setting_name)
+		Print.plog( LogLevel.TRACE, "Setting_full: ", setting_full)
 		
 		# Handle TOOL_BUTTON hint
 		if property_value \
 		and property_type == TYPE_CALLABLE \
 		and property_hint & PROPERTY_HINT_TOOL_BUTTON:
-			print("is button")
+			Print.plog( LogLevel.TRACE, "is button")
 			var button_func:Callable = property_value
 			add_callable_as_button(setting_name, button_func, hint_string )
 			continue
@@ -400,7 +308,7 @@ func add_target_properties() -> void:
 
 
 func update_target() -> void:
-	print("update_target")
+	Print.plog( LogLevel.TRACE, "update_target")
 	for setting_name:String in setting_prop_map.keys():
 		var setting_val:Variant = ProjectSettings.get(setting_name)
 		var prop_name:StringName = setting_prop_map[setting_name]
@@ -411,7 +319,7 @@ func update_target() -> void:
 
 
 func inspect_target() -> void:
-	print("inspect_target")
+	Print.plog( LogLevel.TRACE, "inspect_target")
 	EditorInterface.inspect_object(_target)
 
 #                 ███████ ████████  █████  ████████ ██  ██████                 #
@@ -428,7 +336,7 @@ func                        __________STATIC_________              ()->void:pass
 ##   "config"[/code]: {"name": "...", "script": "...", ...}
 ## }[/codeblock]
 static func get_all_plugins_info( only_loaded:bool = false) -> Array[Dictionary]:
-	print("get_all_plugins_info")
+	Print.plog( LogLevel.TRACE, "get_all_plugins_info")
 	var enabled_plugins:PackedStringArray = ProjectSettings.get_setting("editor_plugins/enabled")
 	var plugins_info: Array[Dictionary] = []
 
@@ -485,7 +393,7 @@ static func add_callable_as_button(
 			callable:Callable,
 			label:String = callable.get_method().capitalize(),
 			) -> void:
-	print("add_callable_as_button")
+	Print.plog( LogLevel.TRACE, "add_callable_as_button")
 	ProjectSettings.set( path, callable )
 	ProjectSettings.add_property_info({
 		&'name': path,
@@ -497,7 +405,7 @@ static func add_callable_as_button(
 
 ## Erase all editor settings from a prefix
 static func erase_prefix( prefix:String ) -> void:
-	print("erase_prefix")
+	Print.plog( LogLevel.TRACE, "erase_prefix")
 	for property in ProjectSettings.get_property_list():
 		# ignore properties outside of our prefix.
 		var setting_name:String = property.get(&'name')

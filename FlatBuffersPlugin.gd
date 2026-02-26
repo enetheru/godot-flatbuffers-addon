@@ -242,7 +242,9 @@ class MyFileMenu extends EditorContextMenuPlugin:
 		
 		var fbp := FlatBuffersPlugin._prime
 		var config_list:Array[FlatBuffersGeneratorOpts] = fbp.opts.config_list
-		config_list = ProjectSettings.get_setting('flatbuffers/GeneratorConfigs/config_list')
+		var from_settings:Variant = ProjectSettings.get_setting('flatbuffers/GeneratorConfigs/config_list')
+		if from_settings:
+			config_list = from_settings
 		if config_list.is_empty(): config_list.append(preload("uid://b8vn3e2cuhqy3"))
 		
 		for config in config_list:
