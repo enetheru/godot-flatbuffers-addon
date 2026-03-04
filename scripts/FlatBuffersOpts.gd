@@ -27,7 +27,7 @@ var config_list:Array[FlatBuffersGeneratorOpts] = [preload("uid://b8vn3e2cuhqy3"
 # │|___\__,_|_|\__\___/_| |____\___/\__, |
 # ╰─────────────────────────────────|___/──
 @export_group("EditorLog", "editorlog_")
-@export_custom( PROPERTY_HINT_ENUM_SUGGESTION,
+@export_custom( PROPERTY_HINT_ENUM,
 	"SILENT:0,CRITICAL:1,ERROR:2,WARNING:3,NOTICE:4,DEBUG:5,TRACE:6")
 var editorlog_verbosity:int = 0
 
@@ -41,6 +41,9 @@ var editorlog_verbosity:int = 0
 var highlight_error:bool = true
 @export
 var highlight_warning:bool = true
+
+@export
+var include_godot_fbs:bool = true
 
 @export_group("Colours")
 # │  ___     _

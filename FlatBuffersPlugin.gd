@@ -209,7 +209,10 @@ func flatc_generate( schema_path:String, config:FlatBuffersGeneratorOpts ) -> Di
 	return report
 
 
-static func generate( schema_path:String, config:FlatBuffersGeneratorOpts ) -> Dictionary:
+static func generate( 
+			schema_path:String,
+			config:FlatBuffersGeneratorOpts = load("uid://b8vn3e2cuhqy3")
+			) -> Dictionary:
 	return _prime.flatc_generate( schema_path, config  )
 
 
@@ -243,9 +246,8 @@ class MyFileMenu extends EditorContextMenuPlugin:
 		var fbp := FlatBuffersPlugin._prime
 		var config_list:Array[FlatBuffersGeneratorOpts] = fbp.opts.config_list
 		var from_settings:Variant = ProjectSettings.get_setting('flatbuffers/GeneratorConfigs/config_list')
-		if from_settings:
-			config_list = from_settings
-		if config_list.is_empty(): config_list.append(preload("uid://b8vn3e2cuhqy3"))
+		if from_settings: config_list = from_settings
+		if config_list.is_empty(): config_list.append(load("uid://b8vn3e2cuhqy3"))
 		
 		for config in config_list:
 			var item_name:String = "FlatBuffers Generate: %s" % [config.name] 

@@ -213,8 +213,9 @@ func _update_cache() -> void:
 	parser.quick_scan( text_edit.text )
 
 	text_edit.set_tooltip_request_func( func( word:String ) -> String:
-		var tip:String = Tips.keywords.get(word)
-		return  tip if tip else "" )
+		var tooltip:Variant = Tips.keywords.get(word)
+		if not tooltip: return ""
+		return  tooltip)
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #

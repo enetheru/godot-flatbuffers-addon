@@ -45,13 +45,15 @@ func                        __Basic_Opts_____________              ()->void:pass
 var output_path:String
 
 
-@export_custom( PROPERTY_HINT_ARRAY_TYPE, "%d:" % PROPERTY_HINT_GLOBAL_DIR )
+@export
 ## -I PATH, Search for includes in the specified path[br]
 ## It is unfortunate that the syntax highlighter cannot know the path of the
 ## currently edited file, so all paths must be absolute, or directly relative
 ## to an include path.
 var include_paths:PackedStringArray
 
+@export
+var add_godot_fbs_to_include_paths:bool = true
 
 @export
 ## Inhibit all warnings messages
@@ -221,9 +223,6 @@ func                        __GDScript_Opts__________              ()->void:pass
 ## Adds some debugging print functions
 var gdscript_debug:bool = false
 
-@export
-var include_godot_fbs:bool = true
-
 #@export
 #var flatc_generate_pack_unpack:bool = false
 
@@ -242,17 +241,14 @@ func                        _________METHODS_________              ()->void:pass
 
 func get_opts() -> PackedStringArray:
 	var args:Array = []
-	var plugin_script:Resource = FlatBuffersPlugin
-	var plugin_path:String = plugin_script.resource_path.get_base_dir()
-
 	## --- Basic Options ----------
 
 	if not output_path.is_empty():
 		args.append_array(['-o', output_path])
 
-	for path:String in include_paths:
+	for path:String in get_include_paths():
 		# TODO transform user:// and res:// to system paths
-		args.append_array(['-I', path])
+		args.append_array(['-I', path.replace('res://', './')])
 
 	# -I <path>                Search for includes in the specified path.
 	#var dir_access := DirAccess.open("res://")
@@ -292,18 +288,16 @@ func get_opts() -> PackedStringArray:
 	if gdscript_debug:
 		args.append("--gdscript-debug")
 
-	## Include the extension res folder for godot.fbs inclusion
-	if include_godot_fbs:
-		args.append_array(['-I', plugin_path.path_join('res').replace('res://', '')])
-
 	return args
 
 
 func get_include_paths() -> Array:
 	var paths:Array = include_paths.duplicate()
 
-	var plugin_script:Resource = FlatBuffersPlugin
-	var plugin_path:String = plugin_script.resource_path.get_base_dir()
-	paths.append(plugin_path)
+	## Include the extension res folder for godot.fbs inclusion
+	if add_godot_fbs_to_include_paths:
+		var plugin_script:Resource = FlatBuffersPlugin
+		var plugin_path:String = plugin_script.resource_path.get_base_dir()
+		paths.append(plugin_path.path_join('res'))
 
 	return paths

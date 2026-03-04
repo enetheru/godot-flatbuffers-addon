@@ -197,7 +197,7 @@ func check_include_file(file_path: String) -> String:
 	var plugin_path:String = plugin_script.resource_path.get_base_dir()
 
 	if file_path == "godot.fbs":
-		file_path = plugin_path + "/godot.fbs"
+		file_path = plugin_path + "/res/godot.fbs"
 
 	if FileAccess.file_exists(file_path):
 		Print.plog(LogLevel.TRACE, "Located file: '%s'" % file_path)
