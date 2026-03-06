@@ -42,6 +42,7 @@ var struct_types: Array[StringName] = []
 var table_types:  Array[StringName] = []
 var union_types:  Array[StringName] = []
 var enum_types:   Dictionary = {}       # StringName → Array[StringName]
+var custom_attr:   Dictionary = {}       # StringName(file_name) → Array[StringName]
 
 # ── Include handling (will be improved later) ────────────────────────────────
 var included_files: Array[String] = []
@@ -101,6 +102,14 @@ var array_types: Array[StringName] = [
 
 # is assigned in _init()
 var scalar_types: Array[StringName] # integer_types + float_types + boolean_types
+
+var attribute_known: Array[StringName] = [
+	&'required',
+	&'deprecated',
+	&'id',
+	&'key',
+	#...
+]
 
 
 var kw_frame_map:Dictionary[StringName, StackFrame.Type] = {
@@ -962,6 +971,7 @@ func parse_field_decl( p_token:Token ) -> void:
 					highlight_colour(token, _opts.get_colour(Token.Type.SCALAR))
 			elif not reader.is_scalar(token.t):
 				syntax_error(token, "Only Scalar values can have defaults")
+		return
 
 	# meta
 	if frame.data.get(&"next") == &"meta":
@@ -1160,6 +1170,7 @@ func parse_enumval_decl( p_token:Token ) -> void:
 func parse_metadata( p_token:Token ) -> void:
 	#metadata = [ ( commasep( ident [:single_value ] ) ) ]
 	# single_value = scalar | string_constant
+	# where ident is one of the built-in ones, or is declared in attributes
 	var frame:StackFrame = stack.top()
 
 	if frame.data.get(&"next") == null:
@@ -1172,6 +1183,12 @@ func parse_metadata( p_token:Token ) -> void:
 
 		if token.t == &")": return end_frame()
 		want_token_type(token, Token.Type.IDENT )
+		
+		## Here is where we need to do the checking for attributes
+		## Additional checks can be run per attribute using the stack
+		## for additional info.
+		if not (token.t in attribute_known):
+			syntax_warning( token, "Unknown Attribute in Meta" )
 
 		token = reader.get_token()
 		if token.t == &":":

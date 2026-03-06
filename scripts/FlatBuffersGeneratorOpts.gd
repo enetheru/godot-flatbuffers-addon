@@ -293,6 +293,9 @@ func get_opts() -> PackedStringArray:
 
 func get_include_paths() -> Array:
 	var paths:Array = include_paths.duplicate()
+	
+	## always include the project root
+	paths.append("res://")
 
 	## Include the extension res folder for godot.fbs inclusion
 	if add_godot_fbs_to_include_paths:

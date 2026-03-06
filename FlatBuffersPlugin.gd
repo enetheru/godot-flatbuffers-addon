@@ -208,7 +208,15 @@ func flatc_generate( schema_path:String, config:FlatBuffersGeneratorOpts ) -> Di
 	if not retcode: EditorInterface.get_resource_filesystem().scan()
 	return report
 
-
+## Generate calls the flatc executable to generate the GDScript code for the 
+## serialiser. it returns a [Dictionary].
+## [codeblock]{
+##		'flatc_path':"C:/.../flatc.exe",
+##		'args':["--gdscript", ...],
+##		'schema': "schema_path.fbs",
+##		'retcode': 0 # (int)
+##		'output': [""] # stdout + stderr
+## }[/codeblock]
 static func generate( 
 			schema_path:String,
 			config:FlatBuffersGeneratorOpts = load("uid://b8vn3e2cuhqy3")
