@@ -11,6 +11,7 @@
 enum Type {
 	NULL = 100,
 	COMMENT,
+	COMMENT_DOC,
 	KEYWORD,
 	TYPE,
 	STRING,
@@ -36,10 +37,10 @@ var type:Type = Type.UNKNOWN ## Token Type
 var t:String ## Token String
 
 ## returns [code]true[/code] of the toke type EOF?
-func eof() -> bool: return type == Type.EOF
+func is_eof() -> bool: return type == Type.EOF
 
 ## returns [code]true[/code] if the toke type EOL?
-func eol() -> bool: return type == Type.EOL
+func is_eol() -> bool: return type == Type.EOL
 
 
 ## Constructor

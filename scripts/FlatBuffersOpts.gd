@@ -58,6 +58,8 @@ var color_syntax_unknown:Color = editor_settings.get_setting("text_editor/theme/
 @export
 var color_syntax_comment:Color = editor_settings.get_setting("text_editor/theme/highlighting/comment_color")
 @export
+var color_syntax_comment_doc:Color = editor_settings.get_setting("text_editor/theme/highlighting/doc_comment_color")
+@export
 var color_syntax_keyword:Color = editor_settings.get_setting("text_editor/theme/highlighting/keyword_color")
 @export
 var color_syntax_type:Color = editor_settings.get_setting("text_editor/theme/highlighting/base_type_color")
@@ -99,6 +101,7 @@ func get_colour(type:int) -> Color:
 		# Token.Type starts at color_10
 		Token.Type.NULL:return color_syntax_unknown
 		Token.Type.COMMENT:return color_syntax_comment
+		Token.Type.COMMENT_DOC:return color_syntax_comment
 		Token.Type.KEYWORD:return color_syntax_keyword
 		Token.Type.TYPE:return color_syntax_type
 		Token.Type.STRING:return color_syntax_string

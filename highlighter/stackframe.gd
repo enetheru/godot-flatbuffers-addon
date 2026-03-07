@@ -22,13 +22,15 @@ enum Type {
 	NAMESPACE_DECL, # = namespace ident ( . ident )* ;
 	ATTRIBUTE_DECL, # = attribute ident | "</tt>ident<tt>" ;
 	TYPE_DECL, # = ( table | struct ) ident metadata { field_decl+ }
-	ENUM_DECL, # = ( enum ident:type | union ident ) metadata { commasep( enumval_decl ) }
+	ENUM_DECL, # = enum ident:type metadata { commasep( enumval_decl ) }
+	UNION_DECL, # = union ident metadata { commasep( enumval_decl ) }
 	ROOT_DECL, # = root_type ident ;
 	FIELD_DECL, # = ident:type [ = scalar ] metadata ;
 	RPC_DECL, # = rpc_service ident { rpc_method+ }
 	RPC_METHOD, # = ident ( ident ):ident metadata ;
 	TYPE, # = bool | byte | ubyte | short | ushort | int | uint | float | long | ulong | double | int8 | uint8 | int16 | uint16 | int32 | uint32| int64 | uint64 | float32 | float64 | string | [ type ] | ident
 	ENUMVAL_DECL, # = ident [ = integer_constant ]
+	UNIONVAL_DECL, # = ident [ : ident ]
 	METADATA, # = [ ( commasep( ident [:single_value ] ) ) ]
 	SCALAR, # = boolean_constant | integer_constant | float_constant
 	OBJECT, # = { commasep( ident:value ) }

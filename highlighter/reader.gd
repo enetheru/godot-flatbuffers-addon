@@ -8,6 +8,9 @@ static var regex_list := RegExList.new()
 func print_bright( _value:String ) -> void:
 	print_rich( "[b][color=yellow]%s[/color][/b]" % [_value] )
 
+func print_token( _value:Token ) -> void:
+	print_rich( "[color=yellow]%s[/color]" % [_value] )
+
 # ██████  ███████  █████  ██████  ███████ ██████
 # ██   ██ ██      ██   ██ ██   ██ ██      ██   ██
 # ██████  █████   ███████ ██   ██ █████   ██████
@@ -67,6 +70,11 @@ var line_n:int = 0
 ## When updating chunks of a larger source file, what line does this chunk start on.
 var line_start:int
 
+## Flag to tell if we are parsing a portion of a document or the whole text.
+## determines if the end of the ext block is an EOL or an EOF
+var whole_file:bool = false
+
+
 func _init( parser_ref:Parser ) -> void:
 	if parser_ref:
 		parser = parser_ref
@@ -76,6 +84,7 @@ func _init( parser_ref:Parser ) -> void:
 func _to_string() -> String:
 	return JSON.stringify({
 		'text': text,
+		'text_length': text.length(),
 		'line_index':line_index,
 		'cursor_p': cursor_p,
 		'cursor_lp': cursor_lp,
@@ -85,13 +94,14 @@ func _to_string() -> String:
 	},'\t', false)
 
 
-func reset( text_:String, line_i:int = 0 ) -> void:
+func reset( text_:String, line_i:int = 0, is_whole_file:bool = false ) -> void:
 	text = text_
 	line_index = [0]
 	cursor_p = 0
 	cursor_lp = 0
 	line_start = line_i
 	line_n = line_i
+	whole_file = is_whole_file
 
 
 # MARK: adv_
@@ -115,6 +125,7 @@ func adv( dist:int = 1 ) -> void:
 		line_n = line_index.size() -1
 		newline.emit( line_n, cursor_p )
 		break
+
 
 ## Advance the the reader until we reach a line break.
 func adv_line() -> void:
@@ -171,23 +182,27 @@ func peek_string() -> String:
 
 func peek_line( offset:int = 0 ) -> String:
 	var eol:int = text.find('\n', cursor_p + offset)
+	if eol < 0: eol = text.length()
 	return text.substr(cursor_p, eol - cursor_p)
 
 
-func peek_token( skip:bool = true ) -> Token:
+func peek_token() -> Token:
 	var p_token:Token
 	while true:
 		adv_whitespace()
 		# end of file
-		p_token = Token.new(line_n, cursor_lp, Token.Type.EOF, peek_char() )
+		
+		p_token = Token.new(line_n, cursor_lp, Token.Type.EOF if whole_file else Token.Type.EOL, peek_char() )
 		if at_end(): break
 
 		p_token.type = Token.Type.UNKNOWN
 
 		# char based tokens
 		if p_token.t == '/' and peek_char(1) == '/':
-			if skip: adv_line(); continue
-			p_token.type = Token.Type.COMMENT
+			if peek_char(2) == '/':
+				p_token.type = Token.Type.COMMENT_DOC
+			else:
+				p_token.type = Token.Type.COMMENT
 			p_token.t = peek_line()
 		elif p_token.t == '\n':
 			p_token.type = Token.Type.EOL
@@ -239,8 +254,8 @@ func get_line( _offset:int = 0 ) -> String:
 	return text.substr( start, cursor_p - start )
 
 
-func get_token( skip:bool = true ) -> Token:
-	var token:Token = peek_token( skip )
+func get_token() -> Token:
+	var token:Token = peek_token()
 	adv_token(token)
 	new_token.emit( token )
 	return token

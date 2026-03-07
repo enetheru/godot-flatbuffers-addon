@@ -12,6 +12,7 @@ const Reader = preload('uid://cupdfm2aikswa')
 const Token = preload('uid://cvcd6kyaa4f1a')
 const FrameStack = preload('uid://d3cyn1bbenwmo')
 const StackFrame = preload('uid://c0ub8clj4bhhv')
+const FrameType = StackFrame.Type
 const FlatBuffersHighlighter = preload('uid://ddcfjoxe7i5jo')
 
 const Print = preload("uid://cbluyr4ifn8g3")
@@ -25,6 +26,13 @@ static var _opts:FlatBuffersOpts:
 		return _opts
 	set(v):_opts = v
 
+## Helful bitflags for branching on common elements
+enum Allow {
+	COLON = 0x1,
+	PAREN = 0x2,
+	COMMA = 0x4,
+	BRACE = 0x8,
+}
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
 # ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
@@ -112,18 +120,18 @@ var attribute_known: Array[StringName] = [
 ]
 
 
-var kw_frame_map:Dictionary[StringName, StackFrame.Type] = {
-	&'include':StackFrame.Type.INCLUDE,
-	&'namespace':StackFrame.Type.NAMESPACE_DECL,
-	&'table':StackFrame.Type.TYPE_DECL,
-	&'struct':StackFrame.Type.TYPE_DECL,
-	&'enum':StackFrame.Type.ENUM_DECL,
-	&'union':StackFrame.Type.ENUM_DECL,
-	&'root_type':StackFrame.Type.ROOT_DECL,
-	&'file_extension':StackFrame.Type.FILE_EXTENSION_DECL,
-	&'file_identifier':StackFrame.Type.FILE_IDENTIFIER_DECL,
-	&'attribute':StackFrame.Type.ATTRIBUTE_DECL,
-	&'rpc_service':StackFrame.Type.RPC_DECL,
+var kw_frame_map:Dictionary[StringName, FrameType] = {
+	&'include':         FrameType.INCLUDE,
+	&'namespace':       FrameType.NAMESPACE_DECL,
+	&'table':           FrameType.TYPE_DECL,
+	&'struct':          FrameType.TYPE_DECL,
+	&'enum':            FrameType.ENUM_DECL,
+	&'union':           FrameType.UNION_DECL,
+	&'root_type':       FrameType.ROOT_DECL,
+	&'file_extension':  FrameType.FILE_EXTENSION_DECL,
+	&'file_identifier': FrameType.FILE_IDENTIFIER_DECL,
+	&'attribute':       FrameType.ATTRIBUTE_DECL,
+	&'rpc_service':     FrameType.RPC_DECL,
 }
 
 # ── Per-line parsing ────────────────────────────────────────────────────────
@@ -160,6 +168,7 @@ func _init(plugin_ref: FlatBuffersPlugin = null) -> void:
 			if error_flag: return
 			save_stack(l, 0))
 	if err != OK: Print.plog(LogLevel.ERROR, error_string(err))
+
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
 #         ████  ████ ██         ██    ██   ██ ██    ██ ██   ██ ██              #
@@ -307,40 +316,42 @@ func reset_stack() -> void:
 
 func _dispatch(frame: StackFrame, token: Token) -> void:
 	match frame.type:
-		StackFrame.Type.NONE:                   syntax_error(token)
-		StackFrame.Type.SCHEMA:                 parse_schema(token)
-		StackFrame.Type.INCLUDE:                parse_include(token)
-		StackFrame.Type.NAMESPACE_DECL:         parse_namespace_decl(token)
-		StackFrame.Type.ATTRIBUTE_DECL:         parse_attribute_decl(token)
-		StackFrame.Type.TYPE_DECL:              parse_type_decl(token)
-		StackFrame.Type.ENUM_DECL:              parse_enum_decl(token)
-		StackFrame.Type.ROOT_DECL:              parse_root_decl(token)
-		StackFrame.Type.FIELD_DECL:             parse_field_decl(token)
-		StackFrame.Type.RPC_DECL:               parse_rpc_decl(token)
-		StackFrame.Type.RPC_METHOD:             parse_rpc_method(token)
-		StackFrame.Type.TYPE:                   parse_type(token)
-		StackFrame.Type.ENUMVAL_DECL:           parse_enumval_decl(token)
-		StackFrame.Type.METADATA:               parse_metadata(token)
-		StackFrame.Type.SCALAR:                 parse_scalar(token)
-		StackFrame.Type.OBJECT:                 parse_object(token)
-		StackFrame.Type.SINGLE_VALUE:           parse_single_value(token)
-		StackFrame.Type.VALUE:                  parse_value(token)
-		StackFrame.Type.COMMASEP:               parse_commasep(token)
-		StackFrame.Type.FILE_EXTENSION_DECL:    parse_file_extension_decl(token)
-		StackFrame.Type.FILE_IDENTIFIER_DECL:   parse_file_identifier_decl(token)
-		StackFrame.Type.STRING_CONSTANT:        parse_string_constant(token)
-		StackFrame.Type.IDENT:                  parse_ident(token)
-		#StackFrame.Type.DIGIT:                  parse_digit(token)
-		#StackFrame.Type.XDIGIT:                 parse_xdigit(token)
-		#StackFrame.Type.DEC_INTEGER_CONSTANT:   parse_dec_integer_constant(token)
-		#StackFrame.Type.HEX_INTEGER_CONSTANT:   parse_hex_integer_constant(token)
-		StackFrame.Type.INTEGER_CONSTANT:       parse_integer_constant(token)
-		#StackFrame.Type.DEC_FLOAT_CONSTANT:     parse_dec_float_constant(token)
-		#StackFrame.Type.HEX_FLOAT_CONSTANT:     parse_hex_float_constant(token)
-		#StackFrame.Type.SPECIAL_FLOAT_CONSTANT: parse_special_float_constant(token)
-		#StackFrame.Type.FLOAT_CONSTANT:         parse_float_constant(token)
-		#StackFrame.Type.BOOLEAN_CONSTANT:       parse_boolean_constant(token)
-		_: syntax_error(token, "No parser for frame type %s" % StackFrame.Type.find_key(frame.type))
+		FrameType.NONE:                   syntax_error(token)
+		FrameType.SCHEMA:                 parse_schema(token)
+		FrameType.INCLUDE:                parse_include(token)
+		FrameType.NAMESPACE_DECL:         parse_namespace_decl(token)
+		FrameType.ATTRIBUTE_DECL:         parse_attribute_decl(token)
+		FrameType.TYPE_DECL:              parse_type_decl(token)
+		FrameType.ENUM_DECL:              parse_enum_decl(token)
+		FrameType.UNION_DECL:             parse_union_decl(token)
+		FrameType.ROOT_DECL:              parse_root_decl(token)
+		FrameType.FIELD_DECL:             parse_field_decl(token)
+		FrameType.RPC_DECL:               parse_rpc_decl(token)
+		FrameType.RPC_METHOD:             parse_rpc_method(token)
+		FrameType.TYPE:                   parse_type(token)
+		FrameType.ENUMVAL_DECL:           parse_enumval_decl(token)
+		FrameType.UNIONVAL_DECL:          parse_unionval_decl(token)
+		FrameType.METADATA:               parse_metadata(token)
+		FrameType.SCALAR:                 parse_scalar(token)
+		FrameType.OBJECT:                 parse_object(token)
+		FrameType.SINGLE_VALUE:           parse_single_value(token)
+		FrameType.VALUE:                  parse_value(token)
+		FrameType.COMMASEP:               parse_commasep(token)
+		FrameType.FILE_EXTENSION_DECL:    parse_file_extension_decl(token)
+		FrameType.FILE_IDENTIFIER_DECL:   parse_file_identifier_decl(token)
+		FrameType.STRING_CONSTANT:        parse_string_constant(token)
+		FrameType.IDENT:                  parse_ident(token)
+		#FrameType.DIGIT:                  parse_digit(token)
+		#FrameType.XDIGIT:                 parse_xdigit(token)
+		#FrameType.DEC_INTEGER_CONSTANT:   parse_dec_integer_constant(token)
+		#FrameType.HEX_INTEGER_CONSTANT:   parse_hex_integer_constant(token)
+		FrameType.INTEGER_CONSTANT:       parse_integer_constant(token)
+		#FrameType.DEC_FLOAT_CONSTANT:     parse_dec_float_constant(token)
+		#FrameType.HEX_FLOAT_CONSTANT:     parse_hex_float_constant(token)
+		#FrameType.SPECIAL_FLOAT_CONSTANT: parse_special_float_constant(token)
+		#FrameType.FLOAT_CONSTANT:         parse_float_constant(token)
+		#FrameType.BOOLEAN_CONSTANT:       parse_boolean_constant(token)
+		_: syntax_error(token, "No parser for frame type %s" % FrameType.find_key(frame.type))
 
 
 #             ███████ ██████   █████  ███    ███ ███████ ███████               #
@@ -481,7 +492,7 @@ func quick_scan_text(full_text: String) -> void:
 
 		qreader.adv_line()
 
-
+## Returns true on success, and false on failure.
 func quick_scan_file(file_path: String) -> bool:
 	Print.plog( LogLevel.DEBUG, "[b]quick_scan_file: '%s'[/b]" % file_path)
 
@@ -555,6 +566,15 @@ func check_token_type(token: Token, typ: Token.Type, msg: String = "") -> bool:
 	return false
 
 
+## Convenience to test and consume COMMENT and COMMENT_DOC tokens.
+func is_comment( p_token:Token ) -> bool:
+	if p_token.type == Token.Type.COMMENT \
+	or p_token.type == Token.Type.COMMENT_DOC:
+		var _token:Token = reader.get_token()
+		return true
+	return false
+
+
 # ── Per-line parsing ────────────────────────────────────────────────────────
 ## Main entry point for highlighting one line.
 ## Called from highlighter._get_line_syntax_highlighting()
@@ -571,23 +591,21 @@ func parse_line(line_num: int, line_text: String) -> Dictionary:
 	# Restore stack state
 	stack = get_prev_stack(line_num)
 	if stack.is_empty():
-		stack.push(StackFrame.new(StackFrame.Type.SCHEMA))
+		stack.push(StackFrame.new(FrameType.SCHEMA))
 
 	# Reset lexer for this line
 	reader.reset(line_text, line_num)
 
-	# ── Early outs (exactly as before) ───────────────────────────────────────
-	var token := reader.peek_token(false)   # false = do NOT auto-skip comments
+	# ── Early outs ───────────────────────────────────────
+	var p_token := reader.peek_token()
 
-	if token.type == Token.Type.COMMENT:
-		highlight(token)          # writes to highlighter.line_dict
+	if is_comment(p_token):
 		if not error_flag:
 			save_stack(line_num)
 		return active_highlighter.line_dict
 
-	if token.type == Token.Type.EOL or token.type == Token.Type.EOF:
-		if not error_flag:
-			save_stack(line_num)
+	if p_token.is_eol() or p_token.is_eof():
+		if not error_flag: save_stack(line_num)
 		return active_highlighter.line_dict
 
 	# ── Full parse loop ─────────────────────────────────────────────────────
@@ -632,13 +650,16 @@ func parse_schema( p_token:Token ) -> void:
 	#					 | attribute_decl | rpc_decl | object )*
 	var frame:StackFrame = stack.top()
 
-	if p_token.eof(): return
+	if p_token.is_eol(): return
+	
+	if is_comment(p_token):
+		return
 
 	var exclude:int = frame.data.get(&"exclude", 99999999)
 
 	if p_token.t == &'include':
 		if p_token.line < exclude:
-			stack.push( StackFrame.new( StackFrame.Type.INCLUDE ) )
+			stack.push( StackFrame.new( FrameType.INCLUDE ) )
 			return
 		syntax_error( p_token, "Trying to use include mid file" )
 		reader.adv_line()
@@ -646,7 +667,7 @@ func parse_schema( p_token:Token ) -> void:
 
 	if p_token.type == Token.Type.KEYWORD:
 		frame.data[&"exclude"] = min( exclude, p_token.line )
-		var type:StackFrame.Type = kw_frame_map.get( p_token.t )
+		var type:FrameType = kw_frame_map.get( p_token.t )
 		stack.push( StackFrame.new( type ) )
 		return
 
@@ -683,7 +704,7 @@ func parse_include( _p_token:Token ) -> void:
 			Print.plog( LogLevel.WARNING, "File was not picked up in quick_scan: '%s'" % checked_path )
 			# Scan the file
 			included_files.append(checked_path)
-			if quick_scan_file(checked_path):
+			if not quick_scan_file(checked_path):
 				syntax_error(token, "quick scan failed to parse file")
 
 	token = reader.get_token()
@@ -780,7 +801,7 @@ func parse_type_decl( p_token:Token ) -> void:
 		token = reader.peek_token()
 		if token.t == &"(":
 			frame.data[&'next'] = &'{'
-			stack.push( StackFrame.new( StackFrame.Type.METADATA ) )
+			stack.push( StackFrame.new( FrameType.METADATA ) )
 			return
 
 		frame.data[&'next'] = &'{'
@@ -788,7 +809,7 @@ func parse_type_decl( p_token:Token ) -> void:
 
 	if frame.data.get(&'next') == &'{':
 		var token:Token = reader.get_token()
-		if token.eof():return
+		if token.is_eol():return
 		want_token_t( token, &"{" )
 		frame.data[&'next'] = &'field_decl'
 
@@ -796,9 +817,9 @@ func parse_type_decl( p_token:Token ) -> void:
 		p_token = reader.peek_token()
 
 	if frame.data.get(&'next') == &'field_decl':
-		if p_token.eof():return
+		if p_token.is_eol():return
 		if p_token.t != &"}":
-			stack.push( StackFrame.new( StackFrame.Type.FIELD_DECL, {&"decl_type":decl_type} ) )
+			stack.push( StackFrame.new( FrameType.FIELD_DECL, {&"decl_type":decl_type} ) )
 			return
 		reader.adv_token(p_token) # Consume the }
 		end_frame()
@@ -818,13 +839,121 @@ func parse_type_decl( p_token:Token ) -> void:
 # ╰─────────────────────────────────────
 #region Enum Decl
 func parse_enum_decl( p_token:Token ) -> void:
-	#enum_decl = ( enum ident:type | union ident ) metadata { commasep( enumval_decl ) }
+	#enum_decl = enum ident:type metadata { commasep( enumval_decl ) }
 	var frame:StackFrame = stack.top()
 
 	var decl_type:StringName = frame.data.get(&"decl_type", StringName())
 	var decl_name:StringName = frame.data.get(&"decl_name", StringName())
+	var allow:int = frame.data.get_or_add(&"allow", -1 & ~Allow.COMMA)
+	# flags for allow
+	# 0x1 = type     | :integer_type
+	# 0x2 = metadata | ()
+	# 0x4 = expecting comma between enumvals
 
-	reader.print_bright("Frame Next: '%s'" % frame.data.get(&"next"))
+	if is_comment(p_token):
+		return
+
+	if frame.data.get(&"next") == null:
+		frame.data[&'next'] = &'post_ident'
+
+		# enum keyword
+		var token:Token = reader.get_token()
+		want_token_t(token, 'enum')
+		decl_type = &'enum'
+		frame.data[&"decl_type"] = decl_type
+
+		# ident
+		token = reader.get_token()
+		if check_token_type(token, Token.Type.IDENT):
+			decl_name = token.t
+			frame.data[&"decl_name"] = decl_name
+			enum_types[ decl_name ] = Array([], TYPE_STRING_NAME, "", null)
+		else:
+			reader.adv_line()
+			error_frame(token, "IDENT Required")
+			return 
+			
+		# :type is mandatory
+		token = reader.get_token() # fetch and consume ':'
+		if check_token_t(token, &':'):
+			stack.push( StackFrame.new( FrameType.TYPE, { &"decl_type":decl_type } ) )
+			return
+		
+		reader.adv_line()
+		error_frame(token, "enum type is required")
+		return
+
+	# Handle the branching after ident.
+	if frame.data.get(&"next") == &'post_ident':
+		if p_token.is_eol(): return reader.adv_token(p_token)
+		if is_comment(p_token):return
+		want_token_type(p_token, Token.Type.PUNCT)
+		match p_token.t:
+			# meta
+			&'(' when allow & Allow.PAREN: 
+				frame.data[&'allow'] = allow & ~(Allow.COLON | Allow.PAREN)
+				stack.push(StackFrame.new( FrameType.METADATA ) )
+				return
+			
+			# enum_val begin
+			&'{':
+				var _token:Token = reader.get_token() # consume '{'
+				frame.data[&'next'] = &'enumval_decl'
+				return
+			_:
+				error_frame(p_token, "Unexpected Token")
+				return
+				
+
+	if frame.data.get(&'next') == &'enumval_decl':
+		# separator, allow for trailing read before closing brace
+		if (allow & 0x4) and p_token.t == &',':
+			frame.data[&'allow'] = allow & ~Allow.COMMA
+			reader.adv_token(p_token) # Consume the ','
+			p_token = reader.peek_token()
+		
+		# closing brace
+		if p_token.t == &"}":
+			reader.adv_token(p_token) # Consume the '}'
+			return end_frame()
+		
+		# Newlines are ok between enumvals
+		if p_token.is_eol():
+			return reader.adv_token(p_token)
+		
+		if is_comment(p_token):
+			return 
+		
+		# enumval_decl
+		if check_token_type( p_token, Token.Type.IDENT ):
+			frame.data[&'allow'] = allow | Allow.COMMA
+			stack.push( StackFrame.new( FrameType.ENUMVAL_DECL,
+					{ &"decl_type":decl_type, &"decl_name":decl_name } ) )
+			return
+		else:
+			reader.adv_line() # Skip the remainder of the line
+
+		return
+
+	syntax_error(p_token, "reached end of parse_enum_val( ... )" )
+	return end_frame()
+#endregion Enum Decl
+
+
+
+#MARK: Union Decl
+# │ _   _      _            ___         _   
+# │| | | |_ _ (_)___ _ _   |   \ ___ __| |  
+# │| |_| | ' \| / _ \ ' \  | |) / -_) _| |  
+# │ \___/|_||_|_\___/_||_| |___/\___\__|_|  
+# ╰─────────────────────────────────────────
+#region Enum Decl
+func parse_union_decl( p_token:Token ) -> void:
+	#enum_decl = union ident metadata { commasep( enumval_decl ) }
+	var frame:StackFrame = stack.top()
+
+	var decl_type:StringName = frame.data.get(&"decl_type", StringName())
+	var decl_name:StringName = frame.data.get(&"decl_name", StringName())
 
 	if frame.data.get(&"next") == null:
 		frame.data[&'next'] = &'meta'
@@ -850,18 +979,18 @@ func parse_enum_decl( p_token:Token ) -> void:
 		if decl_type == &"enum":
 			if token.t == &":":
 				reader.adv_token(token) # consume token.
-				stack.push( StackFrame.new( StackFrame.Type.TYPE, { &"decl_type":decl_type } ) )
+				stack.push( StackFrame.new( FrameType.TYPE, { &"decl_type":decl_type } ) )
 				return
 
 	if frame.data.get(&'next') == &'meta':
 		frame.data[&'next'] = &'{'
 		if p_token.t == &"(":
-			stack.push(StackFrame.new( StackFrame.Type.METADATA ) )
+			stack.push(StackFrame.new( FrameType.METADATA ) )
 			return
 
 	if frame.data.get(&'next') == &'{':
 		var token:Token = reader.get_token()
-		if token.eof(): return
+		if token.is_eol(): return
 		frame.data[&'next'] = &'enumval_decl'
 		want_token_t(token, &"{")
 		p_token = reader.peek_token()
@@ -869,7 +998,7 @@ func parse_enum_decl( p_token:Token ) -> void:
 	if frame.data.get(&'next') == &'enumval_decl':
 		reader.print_bright("Token: '%s'" % reader.peek_token().t)
 		# Newlines are ok at the beginning/end
-		if p_token.eof():return
+		if p_token.is_eol():return
 		if p_token.t == &"}":
 			reader.adv_token(p_token) # Consume the '}'
 			return end_frame()
@@ -879,9 +1008,9 @@ func parse_enum_decl( p_token:Token ) -> void:
 
 		if check_token_type( p_token, Token.Type.IDENT ):
 			match decl_type:
-				&"union": stack.push( StackFrame.new( StackFrame.Type.ENUMVAL_DECL,
+				&"union": stack.push( StackFrame.new( FrameType.ENUMVAL_DECL,
 					{ &"decl_type":decl_type } ) )
-				&"enum": stack.push( StackFrame.new( StackFrame.Type.ENUMVAL_DECL,
+				&"enum": stack.push( StackFrame.new( FrameType.ENUMVAL_DECL,
 					{ &"decl_type":decl_type, &"decl_name":decl_name } ) )
 			return
 
@@ -890,7 +1019,7 @@ func parse_enum_decl( p_token:Token ) -> void:
 
 	syntax_error(p_token, "reached end of parse_enum_val( ... )" )
 	return end_frame()
-#endregion Enum Decl
+#endregion Union Decl
 
 
 #MARK: Root Decl
@@ -929,7 +1058,7 @@ func parse_field_decl( p_token:Token ) -> void:
 
 	# field_decl can start on a newline, so this function is called
 	# even on empty lines.
-	if p_token.eof(): return
+	if p_token.is_eol(): return
 
 	var decl_type:StringName = frame.bindings.get(&"decl_type", StringName())
 	var field_name:StringName = frame.data.get(&"field_name", StringName())
@@ -945,11 +1074,11 @@ func parse_field_decl( p_token:Token ) -> void:
 		# and add the name to the list.
 
 		token = reader.get_token()
-		if token.eof():return
+		if token.is_eol():return
 		want_token_t( token, &":")
 
 		frame.data[&"next"] = &"default"
-		stack.push( StackFrame.new( StackFrame.Type.TYPE,
+		stack.push( StackFrame.new( FrameType.TYPE,
 			{ &"decl_type":decl_type, &"field_name":field_name } ) )
 		return
 
@@ -977,7 +1106,7 @@ func parse_field_decl( p_token:Token ) -> void:
 	if frame.data.get(&"next") == &"meta":
 		frame.data[&"next"] = &";"
 		if p_token.t == &"(":
-			stack.push( StackFrame.new( StackFrame.Type.METADATA ) )
+			stack.push( StackFrame.new( FrameType.METADATA ) )
 			return
 
 	# finish
@@ -1128,12 +1257,43 @@ func parse_enumval_decl( p_token:Token ) -> void:
 	var frame:StackFrame = stack.top()
 
 	var decl_name:String = frame.bindings.get(&"decl_name", StringName())
-	var decl_type:String = frame.bindings.get(&"decl_type", StringName())
-
-	reader.print_bright("Token: '%s'" % reader.peek_token().t)
+	#var decl_type:String = frame.bindings.get(&"decl_type", StringName())
 
 	var token:Token = reader.get_token()
-	reader.print_bright("Token: '%s'" % reader.peek_token().t)
+
+	if check_token_type(token, Token.Type.IDENT ):
+		if enum_types.has(decl_name):
+			var enum_vals:Array[StringName] = enum_types.get(decl_name)
+			enum_vals.append( token.t )
+		else:
+			return error_frame( token, "enum_types.has(decl_name) is false")
+
+	p_token = reader.peek_token()
+	if p_token.t == &"=":
+		token = reader.get_token() # consume '='
+		token = reader.get_token() # get the value
+		if not reader.is_integer(token.t):
+			syntax_error(token, "enum values must be integer constants")
+
+	return end_frame()
+#endregion Enumval Decl
+
+
+#MARK: Union value Declaration
+# │ _   _      _                  _   ___         _   
+# │| | | |_ _ (_)___ _ ___ ____ _| | |   \ ___ __| |  
+# │| |_| | ' \| / _ \ ' \ V / _` | | | |) / -_) _| |  
+# │ \___/|_||_|_\___/_||_\_/\__,_|_| |___/\___\__|_|  
+# ╰───────────────────────────────────────────────────
+#region Unionvan Decl
+func parse_unionval_decl( p_token:Token ) -> void:
+	# ENUMVAL_DECL = ident [ = integer_constant ]
+	var frame:StackFrame = stack.top()
+
+	var decl_name:String = frame.bindings.get(&"decl_name", StringName())
+	var decl_type:String = frame.bindings.get(&"decl_type", StringName())
+
+	var token:Token = reader.get_token()
 
 	match decl_type:
 		&"union":
@@ -1158,7 +1318,6 @@ func parse_enumval_decl( p_token:Token ) -> void:
 
 	return end_frame()
 #endregion Enumval Decl
-
 
 #MARK: Metadata
 # │ __  __     _           _      _
@@ -1282,7 +1441,7 @@ func parse_value( p_token:Token ) -> void:
 func parse_commasep( p_token:Token ) -> void:
 	# COMMASEP(x) = [ x ( , x )* ]
 	var frame:StackFrame = stack.top()
-	var arg_type:StackFrame.Type = frame.data.get(&"args")
+	var arg_type:FrameType = frame.data.get(&"args")
 	if arg_type == null:
 		syntax_error(p_token, "commasep needs an argument")
 		return end_frame()
