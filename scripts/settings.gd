@@ -85,6 +85,7 @@
 ## differences, button code, enabled_plugins.[br]
 ## 2026-02-27 - Completely re-worked the script for ProjectSettings,
 ## instead of EditorSettings.[br]
+## 2026-03-08 - Fixed the signal to emit the new value, not the old one[br]
 
 ## Link for adding documentation tooltips to settings.
 ## very brute force.
@@ -92,7 +93,6 @@
 
 const Print = preload("uid://cbluyr4ifn8g3")
 const LogLevel = Print.LogLevel
-
 
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
@@ -310,12 +310,12 @@ func add_target_properties() -> void:
 func update_target() -> void:
 	Print.plog( LogLevel.TRACE, "update_target")
 	for setting_name:String in setting_prop_map.keys():
-		var setting_val:Variant = ProjectSettings.get(setting_name)
+		var new_val:Variant = ProjectSettings.get(setting_name)
 		var prop_name:StringName = setting_prop_map[setting_name]
-		var prop_val:Variant = _target.get(prop_name)
-		if setting_val == prop_val: continue
-		_target.set(prop_name, setting_val)
-		settings_changed.emit( prop_name, prop_val )
+		if new_val == _target.get(prop_name): continue
+		Print.plog( LogLevel.TRACE, "Updating '%s' : %s" % [setting_name, new_val])
+		_target.set(prop_name, new_val)
+		settings_changed.emit( prop_name, new_val )
 
 
 func inspect_target() -> void:
