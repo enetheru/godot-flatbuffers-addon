@@ -397,14 +397,15 @@ func error_frame( token:Token, message:String ) -> void:
 func                       ________QUICK_SCAN_______               ()->void:pass
 
 func quick_scan(full_text: String) -> void:
+	Print.plog( LogLevel.TRACE, "quick_scan()")
+	
 	if is_quick_scan_in_progress:
 		Print.plog( LogLevel.WARNING, "QuickScanText: already in progress — skipping nested call")
 		return
 	is_quick_scan_in_progress = true
 
-	Print.plog( LogLevel.DEBUG, "[b]quick_scan[/b]")
 	quick_scan_text(full_text)
-
+	
 	while scan_pending.size() > 0:
 		var file_path:String = scan_pending.pop_front()
 		Print.plog( LogLevel.DEBUG, "Scanning: '%s'" % file_path)

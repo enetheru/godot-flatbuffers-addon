@@ -10,7 +10,11 @@ var editor_settings := EditorInterface.get_editor_settings()
 
 @export
 ## A variable to help me turn on and off debug features and tests.
-var debug:bool = true
+var debug:bool = false
+
+@export
+## Turn on and off experimental and development features.
+var experimental:bool = false
 
 #@export_group("GeneratorConfigs", 'config_')
 
@@ -37,11 +41,16 @@ var editorlog_verbosity:int = 0
 # │| __ | / _` | ' \  _| | / _` | ' \  _|
 # │|_||_|_\__, |_||_\__|_|_\__, |_||_\__|
 # ╰───────|___/────────────|___/──────────
+# FIXME what are these options for? 
+ 
 @export
 var highlight_error:bool = true
+
 @export
 var highlight_warning:bool = true
 
+## Add the path to the godot.fbs file to the generator include paths so that builtin variants
+## as structs can be used.
 @export
 var include_godot_fbs:bool = true
 
@@ -83,9 +92,9 @@ var color_notice_error:Color = editor_settings.get_setting("text_editor/theme/hi
 @export
 var color_notice_warning:Color = editor_settings.get_setting("text_editor/theme/highlighting/comment_markers/warning_color")
 @export
-var color_notice_notice:Color = editor_settings.get_setting("text_editor/theme/highlighting/text_color")
+var color_notice_notice:Color = editor_settings.get_setting("text_editor/theme/highlighting/comment_markers/notice_color")
 @export
-var color_notice_debug:Color = editor_settings.get_setting("text_editor/theme/highlighting/comment_color")
+var color_notice_debug:Color = editor_settings.get_setting("text_editor/theme/highlighting/doc_comment_color")
 @export
 var color_notice_trace:Color = editor_settings.get_setting("text_editor/theme/highlighting/comment_color")
 

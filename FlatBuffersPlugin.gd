@@ -33,11 +33,26 @@ func                        ________PROPERTIES_______              ()->void:pass
 # Reference to self so we can do things since we are already instantiated.
 static var _prime:FlatBuffersPlugin
 
-var opts := FlatBuffersOpts.new()
+var opts:FlatBuffersOpts
 
 var highlighter:SchemaHighlighter
 
 var context_menus:Dictionary[EditorContextMenuPlugin.ContextMenuSlot,EditorContextMenuPlugin]
+
+
+#             ███████ ██    ██ ███████ ███    ██ ████████ ███████              #
+#             ██      ██    ██ ██      ████   ██    ██    ██                   #
+#             █████   ██    ██ █████   ██ ██  ██    ██    ███████              #
+#             ██       ██  ██  ██      ██  ██ ██    ██         ██              #
+#             ███████   ████   ███████ ██   ████    ██    ███████              #
+func                        __________EVENTS_________              ()->void:pass
+
+func _on_project_settings_changed(
+			setting_name:String, setting_value:Variant ) -> void:
+	Print.plog(LogLevel.TRACE, ''.join([setting_name, ':', setting_value]))
+	match setting_name:
+		"experimental" when setting_value == true: enable_experimental_features()
+		"experimental": disable_experimental_features()
 
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
@@ -50,15 +65,13 @@ func                        ________OVERRIDES________              ()->void:pass
 func _init() -> void:
 	_prime = self
 	name = PluginName
+	opts = FlatBuffersOpts.new()
 	settings_mgr = SettingsHelper.new(opts, plugin_name)
-
-	context_menus = {
-		EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM: MyFileMenu.new(),
-		EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM_CREATE:MyFileCreateMenu.new(),
-		EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_SCRIPT_EDITOR:MyScriptTabMenu.new(),
-		EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_SCRIPT_EDITOR_CODE:MyCodeEditMenu.new(),
-	}
-	Print.plog( LogLevel.TRACE, "%s._init() - Completed" % name )
+	
+	@warning_ignore("return_value_discarded")
+	settings_mgr.settings_changed.connect(_on_project_settings_changed)
+	
+	Print.plog( LogLevel.DEBUG, "%s._init() - Completed" % name )
 
 
 func _enter_tree() -> void:
@@ -67,24 +80,41 @@ func _enter_tree() -> void:
 	highlighter = SchemaHighlighter.new(self)
 	EditorInterface.get_script_editor().register_syntax_highlighter( highlighter )
 
-	# Right Click Context Menu's
-	for key:EditorContextMenuPlugin.ContextMenuSlot in context_menus.keys():
-		add_context_menu_plugin( key, context_menus[key] )
-		
+	## FileSystem Dock Context Menu
+	var cm_slot := EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM
+	var cm_plugin:EditorContextMenuPlugin = FSDockCM.new()
+	add_context_menu_plugin( cm_slot, cm_plugin )
+	context_menus[cm_slot] = cm_plugin
+	
 	# Fix up the text file extensions list.	
 	var editor_settings := EditorInterface.get_editor_settings()
 	var setting_string:String = "docks/filesystem/textfile_extensions"
 	var textfile_extensions:String = editor_settings.get_setting(setting_string)
 	var ext_list:Array = textfile_extensions.split(",")
 	if not 'fbs' in ext_list:
+		Print.plog( LogLevel.TRACE, "Adding fbs to EditorSetting: docks/filesystem/textfile_extensions" )
 		ext_list.append('fbs')
 		editor_settings.set_setting(setting_string, ','.join(ext_list))
 		# Force filesystem scan to refresh the dock
 		EditorInterface.get_resource_filesystem().scan()
+		Print.plog( LogLevel.NOTICE, ' '.join(["[b]FlatBuffersAddon.Note[/b]:",
+			"the 'fbs' extension has been added to EditorSettings:",
+			"`docks/filesystem/textfile_extensions`",
+			"I have noticed that while the",
+			"fbs files do show up after this change, editing them brings up a",
+			"resource error rather than opening the editor. The only way I've",
+			"Found so far to resolve this is to manually change the EditorSetting",
+			"to trigger the editor to perform whatever it needs."]) )
+	
+	if opts.experimental:
+		enable_experimental_features()
 
 
 func _exit_tree() -> void:
 	Print.plog( LogLevel.TRACE, "%s._exit_tree()" % name )
+	
+	if opts.experimental:
+		disable_experimental_features()
 	
 	# Right Click Context Menu's
 	for menu:EditorContextMenuPlugin in context_menus.values():
@@ -98,6 +128,7 @@ func _exit_tree() -> void:
 	var textfile_extensions:String = editor_settings.get_setting(setting_string)
 	var ext_list:Array = textfile_extensions.split(",")
 	if 'fbs' in ext_list:
+		Print.plog( LogLevel.TRACE, "Removing fbs from EditorSetting: docks/filesystem/textfile_extensions" )
 		ext_list.erase('fbs')
 		editor_settings.set_setting(setting_string, ','.join(ext_list))
 		# Force filesystem scan to refresh the dock
@@ -129,6 +160,34 @@ func _disable_plugin() -> void:
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
+func enable_experimental_features() -> void:
+	Print.plog( LogLevel.DEBUG, "enable_experimental_features" )
+	
+	## FileSystem Dock Create Menu and Main Context Menu when empty space is clicked?
+	var cm_slot := EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM_CREATE
+	var cm_plugin:EditorContextMenuPlugin = FSCreateCM.new()
+	add_context_menu_plugin( cm_slot, cm_plugin )
+	context_menus[cm_slot] = cm_plugin
+	
+	## ScriptEditor script tabs
+	cm_slot = EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_SCRIPT_EDITOR
+	cm_plugin = ScriptEditTabCM.new()
+	add_context_menu_plugin( cm_slot, cm_plugin )
+	context_menus[cm_slot] = cm_plugin
+	
+
+func disable_experimental_features() -> void:
+	Print.plog( LogLevel.DEBUG, "disable_experimental_features" )
+	
+	# Right Click Context Menu's
+	for cm_slot:EditorContextMenuPlugin.ContextMenuSlot in [
+		EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM_CREATE,
+		EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_SCRIPT_EDITOR]:
+			var cm_plugin:EditorContextMenuPlugin = context_menus.get(cm_slot)
+			if not context_menus.erase(cm_slot): continue
+			if is_instance_valid(cm_plugin):
+				remove_context_menu_plugin( cm_plugin )
+	
 
 #     ███████ ██       █████  ████████  ██████    ███████ ██   ██ ███████      #
 #     ██      ██      ██   ██    ██    ██         ██       ██ ██  ██           #
@@ -179,30 +238,30 @@ func flatc_generate( schema_path:String, config:FlatBuffersGeneratorOpts ) -> Di
 		'schema': schema_path,
 	}
 
-	if opts.debug or opts.editorlog_verbosity >= LogLevel.NOTICE:
-		print( JSON.stringify(report, "  ", false) )
+	Print.plog(LogLevel.DEBUG, '\n'.join([
+		'{flatc_path}'.format(report),
+		'\t%s' % [' '.join(args)],
+		'\t{schema}'.format(report)]))
 
 	var output:Array = []
 	var retcode:int = OS.execute( flatc_exe, args, output, true )
-
 	report['retcode'] = retcode
-	report['output'] = '\n'.join(output).split('\n', false)
+	
+	# process output
+	var outputp:Array
+	for chunk:String in output:
+		outputp.append_array(chunk.split('\r\n', false))
+	
+	report['output'] = '\n'.join(outputp)
 
-	if opts.debug or opts.editorlog_verbosity >= LogLevel.NOTICE:
-		print( JSON.stringify({
-			'retcode': retcode,
-			'output': '\n'.join(output).split('\n', false),
-		}, "  ", false) )
+	Print.plog(LogLevel.ERROR if retcode else LogLevel.DEBUG,
+		"retcode: {retcode}\noutput:'{output}'".format(report))
 
-	if retcode:
-		print_rich('\n'.join(["[color=salmon][b]",
-		"ERROR: flatc failed with code '%s'[/b]" % [retcode],
-		"\toutput: " + '\n'.join(output) + "[/color]"
-		]))
-
-	#TODO Figure out a way to get the script in the editor to reload.
-	#  the only reliable way I have found to refresh the script in the editor
-	#  is to change the focus away from Godot and back again.
+	Print.plog(LogLevel.NOTICE, ' '.join([ "[b]FlatBuffersPlugin.Note[/b]: scripts",
+		"that are being regenerated will not update in the editor until the",
+		"window focus has changed. I have no idea why, or how to fix it, so",
+		"change to another window away from Godot, and back again to",
+		"refresh the scripts in the editor"]))
 
 	# This line refreshes the filesystem dock.
 	if not retcode: EditorInterface.get_resource_filesystem().scan()
@@ -240,9 +299,13 @@ static func is_fbs_in_path_list(path_list:PackedStringArray) -> bool:
 	return false
 
 
-# filesystem context menu
-# EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM
-class MyFileMenu extends EditorContextMenuPlugin:
+## FileSystem Dock Context Menu.
+## EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM
+class FSDockCM extends EditorContextMenuPlugin:
+	
+	func _init() -> void:
+		Print.plog( LogLevel.TRACE, "FSDockCM._init()" )
+	
 	# _popup_menu() and option callback will be called with list of paths of the
 	# currently selected files.
 	func _popup_menu(paths:PackedStringArray) -> void:
@@ -263,24 +326,34 @@ class MyFileMenu extends EditorContextMenuPlugin:
 		# TODO when configs grow past three, add a submenu.
 
 
-# CONTEXT_SLOT_FILESYSTEM_CREATE
-# The "Create..." submenu of FileSystem dock's context menu.
-class MyFileCreateMenu extends EditorContextMenuPlugin:
+
+## The "Create..." submenu of FileSystem dock's context menu.
+## CONTEXT_SLOT_FILESYSTEM_CREATE
+class FSCreateCM extends EditorContextMenuPlugin:
+	
+	func _init() -> void:
+		Print.plog( LogLevel.TRACE, "FSCreateCM._init()" )
+	
 	# _popup_menu() and option callback will be called with list of paths of the
 	# currently selected files.
 	# TODO, use this menu to enable generating a flatbuffer schema by loading
 	# and analysing a gdscript class for exported values.
 	func _popup_menu(_paths:PackedStringArray) -> void:
 		var fbp := FlatBuffersPlugin._prime
-		if fbp.opts.debug:
+		if fbp.opts.experimental:
 			add_context_menu_item("create_flatbuffer_schema_from_object",
 				func(thing:Array) -> void: print( thing ),
 				ICON_BW_TINY )
 
 
-# CONTEXT_SLOT_SCRIPT_EDITOR
-# Context menu of Script editor's script tabs.
-class MyScriptTabMenu extends EditorContextMenuPlugin:
+
+## Context menu of Script editor's script tabs.
+## CONTEXT_SLOT_SCRIPT_EDITOR
+class ScriptEditTabCM extends EditorContextMenuPlugin:
+	
+	func _init() -> void:
+		Print.plog( LogLevel.TRACE, "ScriptEditTabCM._init()" )
+		
 	# _popup_menu() will be called with the path to the currently edited script,
 	# while option callback will receive reference to that script.
 	func _popup_menu(paths:PackedStringArray) -> void:
@@ -302,21 +375,3 @@ class MyScriptTabMenu extends EditorContextMenuPlugin:
 	#func call_flatc_on_path( _ignore, path:String, args:Array ) -> void:
 		#var fbp := FlatBuffersPlugin._prime
 		#fbp.flatc_generate( path, args )
-
-
-# CONTEXT_SLOT_SCRIPT_EDITOR_CODE
-# Context menu of Script editor's code editor.
-class MyCodeEditMenu extends EditorContextMenuPlugin:
-	# _popup_menu() will be called with the path to the CodeEdit node.
-	# The option callback will receive reference to that node.
-	func _popup_menu( paths:PackedStringArray ) -> void:
-		var fbp := FlatBuffersPlugin._prime
-		if not fbp.opts.debug: return
-		print("paths.size: ", paths.size() )
-		print("paths:\n\t", '\n\t'.join(paths) )
-		var scene_tree:SceneTree = Engine.get_main_loop()
-		var code_edit:CodeEdit = scene_tree.root.get_node(paths[0]);
-		print("selected_text: '%s'" % code_edit.get_selected_text() )
-		add_context_menu_item("flatbuffers testing",
-			func(thing:Array) -> void: print( thing ), 
-			ICON_BW_TINY )
