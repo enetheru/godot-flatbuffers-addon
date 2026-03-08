@@ -111,13 +111,15 @@ var array_types: Array[StringName] = [
 # is assigned in _init()
 var scalar_types: Array[StringName] # integer_types + float_types + boolean_types
 
-var attribute_known: Array[StringName] = [
-	&'required',
-	&'deprecated',
-	&'id',
-	&'key',
-	#...
-]
+## A map of attribute to test functionality as not all attributes are appropriate
+## in all cases.
+var attribute_map:Dictionary[StringName, Callable] = {
+	&'deprecated': attribute_deprecated,
+	&'required': attribute_unsupported,
+	&'id': attribute_unsupported,
+	&'key': attribute_unsupported,
+	&'bit_flags': attribute_unsupported,
+}
 
 
 var kw_frame_map:Dictionary[StringName, FrameType] = {
@@ -817,12 +819,17 @@ func parse_type_decl( p_token:Token ) -> void:
 		p_token = reader.peek_token()
 
 	if frame.data.get(&'next') == &'field_decl':
-		if p_token.is_eol():return
-		if p_token.t != &"}":
-			stack.push( StackFrame.new( FrameType.FIELD_DECL, {&"decl_type":decl_type} ) )
-			return
-		reader.adv_token(p_token) # Consume the }
-		end_frame()
+		match p_token.type:
+			Token.Type.IDENT:
+				stack.push( StackFrame.new( FrameType.FIELD_DECL, {&"decl_type":decl_type} ) )
+				return
+			Token.Type.EOL: return
+			Token.Type.PUNCT when p_token.t == &"}":
+				reader.adv_token(p_token) # Consume the }
+				end_frame()
+				return
+		if is_comment(p_token):return
+		syntax_error(reader.get_token(), "Unhandled Token")
 		return
 
 	syntax_error(p_token, "reached end of parse_type_decl(...)")
@@ -952,35 +959,19 @@ func parse_union_decl( p_token:Token ) -> void:
 	#enum_decl = union ident metadata { commasep( enumval_decl ) }
 	var frame:StackFrame = stack.top()
 
-	var decl_type:StringName = frame.data.get(&"decl_type", StringName())
-	var decl_name:StringName = frame.data.get(&"decl_name", StringName())
-
 	if frame.data.get(&"next") == null:
 		frame.data[&'next'] = &'meta'
 
+		# keyword union
 		var token:Token = reader.get_token()
-		if not token.t in [&'union', &'enum']:
-			syntax_error(token, "wanted ( enum | union )")
-		else:
-			decl_type = token.t
-			frame.data[&"decl_type"] = decl_type
+		want_token_t(token, &'union')
 
 		# ident
 		token = reader.get_token()
 		if check_token_type(token, Token.Type.IDENT):
-			match decl_type:
-				&"union":union_types.append(token.t)
-				&"enum" :
-					decl_name = token.t
-					frame.data[&"decl_name"] = decl_name
-					enum_types[ decl_name ] = Array([], TYPE_STRING_NAME, "", null)
+			union_types.append(token.t)
 
 		token = reader.peek_token()
-		if decl_type == &"enum":
-			if token.t == &":":
-				reader.adv_token(token) # consume token.
-				stack.push( StackFrame.new( FrameType.TYPE, { &"decl_type":decl_type } ) )
-				return
 
 	if frame.data.get(&'next') == &'meta':
 		frame.data[&'next'] = &'{'
@@ -991,12 +982,11 @@ func parse_union_decl( p_token:Token ) -> void:
 	if frame.data.get(&'next') == &'{':
 		var token:Token = reader.get_token()
 		if token.is_eol(): return
-		frame.data[&'next'] = &'enumval_decl'
+		frame.data[&'next'] = &'unionval_decl'
 		want_token_t(token, &"{")
 		p_token = reader.peek_token()
 
-	if frame.data.get(&'next') == &'enumval_decl':
-		reader.print_bright("Token: '%s'" % reader.peek_token().t)
+	if frame.data.get(&'next') == &'unionval_decl':
 		# Newlines are ok at the beginning/end
 		if p_token.is_eol():return
 		if p_token.t == &"}":
@@ -1007,11 +997,7 @@ func parse_union_decl( p_token:Token ) -> void:
 			p_token = reader.peek_token()
 
 		if check_token_type( p_token, Token.Type.IDENT ):
-			match decl_type:
-				&"union": stack.push( StackFrame.new( FrameType.ENUMVAL_DECL,
-					{ &"decl_type":decl_type } ) )
-				&"enum": stack.push( StackFrame.new( FrameType.ENUMVAL_DECL,
-					{ &"decl_type":decl_type, &"decl_name":decl_name } ) )
+			stack.push( StackFrame.new( FrameType.UNIONVAL_DECL ) )
 			return
 
 		reader.adv_token(p_token) # move on
@@ -1059,6 +1045,8 @@ func parse_field_decl( p_token:Token ) -> void:
 	# field_decl can start on a newline, so this function is called
 	# even on empty lines.
 	if p_token.is_eol(): return
+	
+	if is_comment(p_token): return
 
 	var decl_type:StringName = frame.bindings.get(&"decl_type", StringName())
 	var field_name:StringName = frame.data.get(&"field_name", StringName())
@@ -1287,34 +1275,21 @@ func parse_enumval_decl( p_token:Token ) -> void:
 # ╰───────────────────────────────────────────────────
 #region Unionvan Decl
 func parse_unionval_decl( p_token:Token ) -> void:
-	# ENUMVAL_DECL = ident [ = integer_constant ]
-	var frame:StackFrame = stack.top()
-
-	var decl_name:String = frame.bindings.get(&"decl_name", StringName())
-	var decl_type:String = frame.bindings.get(&"decl_type", StringName())
-
+	# UNIONVAL_DECL = ident [ : ident ]
+	
+	# Union Member
 	var token:Token = reader.get_token()
+	# TODO test that the union member exists
+	if check_token_type(token, Token.Type.IDENT ):
+		highlight_colour(token, _opts.get_colour(Token.Type.SCALAR))
 
-	match decl_type:
-		&"union":
-			if check_token_type(token, Token.Type.IDENT ):
-				highlight_colour(token, _opts.get_colour(Token.Type.SCALAR))
-
-		&"enum":
-			if check_token_type(token, Token.Type.IDENT ):
-				if enum_types.has(decl_name):
-					var enum_vals:Array[StringName] = enum_types.get(decl_name)
-					enum_vals.append( token.t )
-				else: return error_frame( token, "enum_types.has(decl_name) is false")
-
-		_: return error_frame(token, "decl_type:'%s' != union | enum." % decl_type )
-
+	# Union Type Alias
 	p_token = reader.peek_token()
-	if p_token.t == &"=":
-		token = reader.get_token() # consume ='='
+	if p_token.t == &":":
+		token = reader.get_token() # consume ':'
 		token = reader.get_token() # get the value
-		if not reader.is_integer(token.t):
-			syntax_error(token, "enum values must be integer constants")
+		# TODO test that the union member alias doesnt clobber an existing type
+		want_token_type(token, Token.Type.IDENT, "Union Member Aliases must confirm to IDENT")
 
 	return end_frame()
 #endregion Enumval Decl
@@ -1343,11 +1318,16 @@ func parse_metadata( p_token:Token ) -> void:
 		if token.t == &")": return end_frame()
 		want_token_type(token, Token.Type.IDENT )
 		
-		## Here is where we need to do the checking for attributes
-		## Additional checks can be run per attribute using the stack
-		## for additional info.
-		if not (token.t in attribute_known):
+		# Here is where we need to do the checking for attributes
+		# Additional checks can be run per attribute using the stack
+		# for additional info.
+		if not (token.t in attribute_map.keys()):
 			syntax_warning( token, "Unknown Attribute in Meta" )
+		else:
+			var attribute_func:Callable = attribute_map.get(token.t)
+			attribute_func.call(token)
+			# TODO, perhaps I need to introduce a new frame for the attribute
+			# control.
 
 		token = reader.get_token()
 		if token.t == &":":
@@ -1639,3 +1619,17 @@ func                        __Boolean_Constant_______              ()->void:pass
 #region Boolean Constant
 
 #endregion Boolean Constant
+
+#    █████  ██████ ██████ ██████  ██ ██████  ██   ██ ██████ ███████ ███████    #
+#   ██   ██   ██     ██   ██   ██ ██ ██   ██ ██   ██   ██   ██      ██         #
+#   ███████   ██     ██   ██████  ██ ██████  ██   ██   ██   █████   ███████    #
+#   ██   ██   ██     ██   ██   ██ ██ ██   ██ ██   ██   ██   ██           ██    #
+#   ██   ██   ██     ██   ██   ██ ██ ██████   █████    ██   ███████ ███████    #
+func                        ________ATTRIBUTES_______              ()->void:pass
+
+func attribute_unsupported(token:Token) -> void:
+	syntax_warning( token, "This attribute is unsupported" )
+
+func attribute_deprecated(_token:Token) -> void:
+	#TODO test that the circumstances in which this attribute appeared is valid.
+	pass
