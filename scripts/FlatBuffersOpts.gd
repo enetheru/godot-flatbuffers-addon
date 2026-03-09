@@ -6,7 +6,8 @@ const Print = preload("uid://cbluyr4ifn8g3")
 const LogLevel = Print.LogLevel
 const Token = preload("uid://cvcd6kyaa4f1a")
 
-var editor_settings := EditorInterface.get_editor_settings()
+## Used to fetch default colours from the editor configuration.
+var _editor_settings := EditorInterface.get_editor_settings()
 
 @export
 ## A variable to help me turn on and off debug features and tests.
@@ -63,40 +64,40 @@ var include_godot_fbs:bool = true
 @export_subgroup("Syntax", "color_syntax_")
 # Tokens
 @export
-var color_syntax_unknown:Color = editor_settings.get_setting("text_editor/theme/highlighting/text_color")
+var color_syntax_unknown:Color = _editor_settings.get_setting("text_editor/theme/highlighting/text_color")
 @export
-var color_syntax_comment:Color = editor_settings.get_setting("text_editor/theme/highlighting/comment_color")
+var color_syntax_comment:Color = _editor_settings.get_setting("text_editor/theme/highlighting/comment_color")
 @export
-var color_syntax_comment_doc:Color = editor_settings.get_setting("text_editor/theme/highlighting/doc_comment_color")
+var color_syntax_comment_doc:Color = _editor_settings.get_setting("text_editor/theme/highlighting/doc_comment_color")
 @export
-var color_syntax_keyword:Color = editor_settings.get_setting("text_editor/theme/highlighting/keyword_color")
+var color_syntax_keyword:Color = _editor_settings.get_setting("text_editor/theme/highlighting/keyword_color")
 @export
-var color_syntax_type:Color = editor_settings.get_setting("text_editor/theme/highlighting/base_type_color")
+var color_syntax_type:Color = _editor_settings.get_setting("text_editor/theme/highlighting/base_type_color")
 @export
-var color_syntax_string:Color = editor_settings.get_setting("text_editor/theme/highlighting/string_color")
+var color_syntax_string:Color = _editor_settings.get_setting("text_editor/theme/highlighting/string_color")
 @export
-var color_syntax_punct:Color = editor_settings.get_setting("text_editor/theme/highlighting/text_color")
+var color_syntax_punct:Color = _editor_settings.get_setting("text_editor/theme/highlighting/text_color")
 @export
-var color_syntax_ident:Color = editor_settings.get_setting("text_editor/theme/highlighting/symbol_color")
+var color_syntax_ident:Color = _editor_settings.get_setting("text_editor/theme/highlighting/symbol_color")
 @export
-var color_syntax_scalar:Color = editor_settings.get_setting("text_editor/theme/highlighting/number_color")
+var color_syntax_scalar:Color = _editor_settings.get_setting("text_editor/theme/highlighting/number_color")
 @export
-var color_syntax_meta:Color = editor_settings.get_setting("text_editor/theme/highlighting/text_color")
+var color_syntax_meta:Color = _editor_settings.get_setting("text_editor/theme/highlighting/text_color")
 
 # log levels
 @export_subgroup("Notice", "color_notice_")
 @export
-var color_notice_critical:Color = editor_settings.get_setting("text_editor/theme/highlighting/comment_markers/critical_color")
+var color_notice_critical:Color = _editor_settings.get_setting("text_editor/theme/highlighting/comment_markers/critical_color")
 @export
-var color_notice_error:Color = editor_settings.get_setting("text_editor/theme/highlighting/comment_markers/critical_color")
+var color_notice_error:Color = _editor_settings.get_setting("text_editor/theme/highlighting/comment_markers/critical_color")
 @export
-var color_notice_warning:Color = editor_settings.get_setting("text_editor/theme/highlighting/comment_markers/warning_color")
+var color_notice_warning:Color = _editor_settings.get_setting("text_editor/theme/highlighting/comment_markers/warning_color")
 @export
-var color_notice_notice:Color = editor_settings.get_setting("text_editor/theme/highlighting/comment_markers/notice_color")
+var color_notice_notice:Color = _editor_settings.get_setting("text_editor/theme/highlighting/comment_markers/notice_color")
 @export
-var color_notice_debug:Color = editor_settings.get_setting("text_editor/theme/highlighting/doc_comment_color")
+var color_notice_debug:Color = _editor_settings.get_setting("text_editor/theme/highlighting/doc_comment_color")
 @export
-var color_notice_trace:Color = editor_settings.get_setting("text_editor/theme/highlighting/comment_color")
+var color_notice_trace:Color = _editor_settings.get_setting("text_editor/theme/highlighting/comment_color")
 
 
 func get_colour(type:int) -> Color:

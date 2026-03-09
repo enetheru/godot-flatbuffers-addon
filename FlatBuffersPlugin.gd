@@ -32,6 +32,8 @@ func                        ________PROPERTIES_______              ()->void:pass
 
 # Reference to self so we can do things since we are already instantiated.
 static var _prime:FlatBuffersPlugin
+static var plugin_dir:String
+static var plugin_path:String
 
 var opts:FlatBuffersOpts
 
@@ -65,6 +67,9 @@ func                        ________OVERRIDES________              ()->void:pass
 func _init() -> void:
 	_prime = self
 	name = PluginName
+	plugin_path = get_script().resource_path
+	plugin_dir = plugin_path.get_base_dir()
+	
 	opts = FlatBuffersOpts.new()
 	settings_mgr = SettingsHelper.new(opts, plugin_name)
 	
@@ -201,7 +206,7 @@ func flatc_multi( paths:Array, config:FlatBuffersGeneratorOpts ) -> Array:
 	var results:Array
 	for path:String in paths:
 		if path.get_extension() == 'fbs':
-			results.append( flatc_generate( path, config ) )
+			results.append( await flatc_generate( path, config ) )
 	return results
 
 
@@ -264,7 +269,17 @@ func flatc_generate( schema_path:String, config:FlatBuffersGeneratorOpts ) -> Di
 		"refresh the scripts in the editor"]))
 
 	# This line refreshes the filesystem dock.
-	if not retcode: EditorInterface.get_resource_filesystem().scan()
+	if retcode: return report
+	
+	var efs:EditorFileSystem = EditorInterface.get_resource_filesystem()
+	efs.scan()
+	efs.scan_sources()
+	if efs.is_scanning():
+		await efs.filesystem_changed
+	
+	#efs.reimport_files() # TODO add the generated filename to this command to
+	# see if it fixes the regeneration issue.
+
 	return report
 
 ## Generate calls the flatc executable to generate the GDScript code for the 
@@ -280,7 +295,7 @@ static func generate(
 			schema_path:String,
 			config:FlatBuffersGeneratorOpts = load("uid://b8vn3e2cuhqy3")
 			) -> Dictionary:
-	return _prime.flatc_generate( schema_path, config  )
+	return await _prime.flatc_generate( schema_path, config  )
 
 
 # ██████  ██  ██████  ██   ██ ████████      ██████ ██      ██  ██████ ██   ██  #

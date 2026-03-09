@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="FlatBuffersOpts" load_steps=2 format=3 uid="uid://btp0s7qy88o36"]
+[gd_resource type="Resource" script_class="FlatBuffersOpts" format=3 uid="uid://btp0s7qy88o36"]
 
 [ext_resource type="Script" uid="uid://dx0weow7g6o44" path="res://addons/enetheru.flatbuffers-addon/scripts/FlatBuffersOpts.gd" id="1_e4pq5"]
 
@@ -8,6 +8,7 @@ script = ExtResource("1_e4pq5")
 editorlog_verbosity = 3
 color_syntax_unknown = Color(0.8025, 0.81, 0.8225, 1)
 color_syntax_comment = Color(0.8025, 0.81, 0.8225, 0.5)
+color_syntax_comment_doc = Color(0.6, 0.7, 0.8, 0.8)
 color_syntax_keyword = Color(1, 0.44, 0.52, 1)
 color_syntax_type = Color(0.26, 1, 0.76, 1)
 color_syntax_string = Color(1, 0.93, 0.63, 1)

@@ -108,7 +108,9 @@ static var _opts:FlatBuffersOpts:
 
 
 static var _verbosity:int :
-	get(): return _opts.editorlog_verbosity
+	get():
+		if _opts: return _opts.editorlog_verbosity
+		else: return LogLevel.CRITICAL
 	set(v):pass
 
 
