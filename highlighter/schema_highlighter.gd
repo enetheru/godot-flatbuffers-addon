@@ -24,7 +24,7 @@ const Parser = preload("uid://dsj2eh2lfm2sg")
 
 
 static var _opts:FlatBuffersOpts:
-	get(): 
+	get():
 		if FlatBuffersPlugin._prime:
 			var opts := FlatBuffersPlugin._prime.opts
 			if opts: _opts = opts
@@ -254,6 +254,10 @@ func syntax_warning( token:Token, reason:String = "" ) -> void:
 
 func syntax_error( token:Token, reason:String = "" ) -> void:
 	parser.error_flag = true
+	var te := get_text_edit()
+	var carets:Array = te.get_sorted_carets()
+	if token.line in carets.map(te.get_caret_line):
+		return
 	var colour:Color = _opts.get_colour(plugin.LogLevel.ERROR)
 	if _opts.highlight_error:
 		get_text_edit().set_line_background_color(token.line, colour.blend(Color(0,0,0,.5)) )
