@@ -23,6 +23,16 @@ const plugin_name:String = "flatbuffers"
 #const plugin_path:String = "res://addons/" + author + "." + plugin_name + '-addon'
 # we can get the plugin path using its resource_path.get_base_dir() anytime.
 
+# Tired of a miss-spelling Maybe using Constants will reduce the off by one errors
+# of using dictionaries.
+const REPORT_SCHEMA  :StringName = &'schema'
+const REPORT_CONFIG  :StringName = &'config'
+const REPORT_FLATC   :StringName = &'flatc_path'
+const REPORT_ARGS    :StringName = &'args'
+const REPORT_STDOUT  :StringName = &'stdout'
+const REPORT_RETCODE :StringName = &'retcode'
+const REPORT_MSG     :StringName = &'msg'
+
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
 # ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
 # ██████  ██████  ██    ██ ██████  █████   ██████     ██    ██ █████   ███████ #
@@ -69,19 +79,19 @@ func _init() -> void:
 	name = PluginName
 	plugin_path = get_script().resource_path
 	plugin_dir = plugin_path.get_base_dir()
-	
+
 	opts = FlatBuffersOpts.new()
 	settings_mgr = SettingsHelper.new(opts, plugin_name)
-	
+
 	@warning_ignore("return_value_discarded")
 	settings_mgr.settings_changed.connect(_on_project_settings_changed)
-	
+
 	Print.plog( LogLevel.DEBUG, "%s._init() - Completed" % name )
 
 
 func _enter_tree() -> void:
 	Print.plog( LogLevel.TRACE, "%s._enter_tree()" % name )
-	
+
 	highlighter = SchemaHighlighter.new(self)
 	EditorInterface.get_script_editor().register_syntax_highlighter( highlighter )
 
@@ -90,8 +100,8 @@ func _enter_tree() -> void:
 	var cm_plugin:EditorContextMenuPlugin = FSDockCM.new()
 	add_context_menu_plugin( cm_slot, cm_plugin )
 	context_menus[cm_slot] = cm_plugin
-	
-	# Fix up the text file extensions list.	
+
+	# Fix up the text file extensions list.
 	var editor_settings := EditorInterface.get_editor_settings()
 	var setting_string:String = "docks/filesystem/textfile_extensions"
 	var textfile_extensions:String = editor_settings.get_setting(setting_string)
@@ -110,24 +120,24 @@ func _enter_tree() -> void:
 			"resource error rather than opening the editor. The only way I've",
 			"Found so far to resolve this is to manually change the EditorSetting",
 			"to trigger the editor to perform whatever it needs."]) )
-	
+
 	if opts.experimental:
 		enable_experimental_features()
 
 
 func _exit_tree() -> void:
 	Print.plog( LogLevel.TRACE, "%s._exit_tree()" % name )
-	
+
 	if opts.experimental:
 		disable_experimental_features()
-	
+
 	# Right Click Context Menu's
 	for menu:EditorContextMenuPlugin in context_menus.values():
 		remove_context_menu_plugin( menu )
-	
+
 	EditorInterface.get_script_editor().unregister_syntax_highlighter( highlighter )
-	
-	# Fix up the text file extensions list.	
+
+	# Fix up the text file extensions list.
 	var editor_settings := EditorInterface.get_editor_settings()
 	var setting_string:String = "docks/filesystem/textfile_extensions"
 	var textfile_extensions:String = editor_settings.get_setting(setting_string)
@@ -167,23 +177,23 @@ func                        _________METHODS_________              ()->void:pass
 
 func enable_experimental_features() -> void:
 	Print.plog( LogLevel.DEBUG, "enable_experimental_features" )
-	
+
 	## FileSystem Dock Create Menu and Main Context Menu when empty space is clicked?
 	var cm_slot := EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM_CREATE
 	var cm_plugin:EditorContextMenuPlugin = FSCreateCM.new()
 	add_context_menu_plugin( cm_slot, cm_plugin )
 	context_menus[cm_slot] = cm_plugin
-	
+
 	## ScriptEditor script tabs
 	cm_slot = EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_SCRIPT_EDITOR
 	cm_plugin = ScriptEditTabCM.new()
 	add_context_menu_plugin( cm_slot, cm_plugin )
 	context_menus[cm_slot] = cm_plugin
-	
+
 
 func disable_experimental_features() -> void:
 	Print.plog( LogLevel.DEBUG, "disable_experimental_features" )
-	
+
 	# Right Click Context Menu's
 	for cm_slot:EditorContextMenuPlugin.ContextMenuSlot in [
 		EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM_CREATE,
@@ -192,7 +202,7 @@ func disable_experimental_features() -> void:
 			if not context_menus.erase(cm_slot): continue
 			if is_instance_valid(cm_plugin):
 				remove_context_menu_plugin( cm_plugin )
-	
+
 
 #     ███████ ██       █████  ████████  ██████    ███████ ██   ██ ███████      #
 #     ██      ██      ██   ██    ██    ██         ██       ██ ██  ██           #
@@ -212,77 +222,88 @@ func flatc_multi( paths:Array, config:FlatBuffersGeneratorOpts ) -> Array:
 
 func flatc_generate( schema_path:String, config:FlatBuffersGeneratorOpts ) -> Dictionary:
 	Print.plog( LogLevel.TRACE, "%s.flatc_generate(%s, %s)" % [name, schema_path, config.name] )
-	
+	var report:Dictionary = {
+		REPORT_SCHEMA  : schema_path,
+		REPORT_CONFIG  : config.name,
+		REPORT_FLATC   : config.flatc_exe,
+		REPORT_ARGS    : '',
+		REPORT_STDOUT  : '',
+		REPORT_RETCODE : 0,
+		REPORT_MSG     : ''
+	}
+
 	# Make sure we have the flac compiler
 	var flatc_exe:String = config.flatc_exe
 	if not FileAccess.file_exists(flatc_exe):
-		var msg:String = "flatc compiler is not found at '%s'" % flatc_exe
-		push_error(msg)
-		return {'retcode':ERR_FILE_BAD_PATH, 'output': [msg]}
+		report[REPORT_MSG] = "flatc compiler is not found at '%s'" % flatc_exe
+		report[REPORT_RETCODE] = ERR_FILE_BAD_PATH
+		printerr(Print.get_call_site(), ":\n\t| ", report[REPORT_MSG])
+		return report
 
 	# Make sure we have the schema file
 	if not FileAccess.file_exists(schema_path):
-		var msg:String = "Missing Schema File: '%s'" % schema_path
-		push_error(msg)
-		return {'retcode':ERR_FILE_BAD_PATH, 'output': [msg] }
+		report[REPORT_MSG] = "Missing Schema File: '%s'" % schema_path
+		report[REPORT_RETCODE] = ERR_FILE_BAD_PATH
+		printerr(Print.get_call_site(), ":\n\t| ", report[REPORT_MSG])
+		return report
 
 	# Get the set of options from the config
 	var args:Array = config.get_opts()
-	
-	# the script will be generated in the res:// root if -o is not specified.
-	# A better defualt is to generate in place.
+
+	# if -o is un-specified the generated file will be placed at res:// which
+	# is the current working directory when executing flatc with OS.execute.
+	# so we specify it if its missing, so the files are generated next to the
+	# schema.
 	if not '-o' in args:
 		args.append_array(['-o', schema_path.get_base_dir().replace('res://', './')])
 
-	# Lastly add the schema path
+	# Lastly add the schema file path
 	args.append( schema_path.replace('res://', './') )
 
-	var report:Dictionary = {
-		'flatc_path':flatc_exe,
-		'args':args,
-		'schema': schema_path,
-	}
+	Print.plog(LogLevel.DEBUG,
+		report[REPORT_FLATC] + '\n',
+		'\t'+ ' '.join(args) + '\n',
+		'\t'+ report[REPORT_SCHEMA])
 
-	Print.plog(LogLevel.DEBUG, '\n'.join([
-		'{flatc_path}'.format(report),
-		'\t%s' % [' '.join(args)],
-		'\t{schema}'.format(report)]))
+	var stdout:Array = []
+	var retcode:int = OS.execute( flatc_exe, args, stdout, true )
+	report[REPORT_RETCODE] = retcode
 
-	var output:Array = []
-	var retcode:int = OS.execute( flatc_exe, args, output, true )
-	report['retcode'] = retcode
-	
 	# process output
-	var outputp:Array
-	for chunk:String in output:
-		outputp.append_array(chunk.split('\r\n', false))
-	
-	report['output'] = '\n'.join(outputp)
+	var output:Array
+	for chunk:String in stdout:
+		output.append_array(chunk.split('\r\n', false))
+
+	report[REPORT_STDOUT] = '\n'.join(output)
 
 	Print.plog(LogLevel.ERROR if retcode else LogLevel.DEBUG,
-		"retcode: {retcode}\noutput:'{output}'".format(report))
+		"retcode: '", report[REPORT_RETCODE],"'\n",
+		"output : '", report[REPORT_STDOUT], "'")
 
-	Print.plog(LogLevel.NOTICE, ' '.join([ "[b]FlatBuffersPlugin.Note[/b]: scripts",
+	Print.plog(LogLevel.NOTICE, "[b]FlatBuffersPlugin.Note[/b]: scripts",
 		"that are being regenerated will not update in the editor until the",
 		"window focus has changed. I have no idea why, or how to fix it, so",
 		"change to another window away from Godot, and back again to",
-		"refresh the scripts in the editor"]))
+		"refresh the scripts in the editor")
 
-	# This line refreshes the filesystem dock.
 	if retcode: return report
-	
+
+	# TODO Maybe I can put this behind a generator options. Makes me think I
+	# I should separate out the checking from the actions.
+	# This line refreshes the filesystem dock.
 	var efs:EditorFileSystem = EditorInterface.get_resource_filesystem()
 	efs.scan()
 	efs.scan_sources()
 	if efs.is_scanning():
 		await efs.filesystem_changed
-	
+
 	#efs.reimport_files() # TODO add the generated filename to this command to
 	# see if it fixes the regeneration issue.
 
 	return report
 
-## Generate calls the flatc executable to generate the GDScript code for the 
+
+## Generate calls the flatc executable to generate the GDScript code for the
 ## serialiser. it returns a [Dictionary].
 ## [codeblock]{
 ##		'flatc_path':"C:/.../flatc.exe",
@@ -291,7 +312,7 @@ func flatc_generate( schema_path:String, config:FlatBuffersGeneratorOpts ) -> Di
 ##		'retcode': 0 # (int)
 ##		'output': [""] # stdout + stderr
 ## }[/codeblock]
-static func generate( 
+static func generate(
 			schema_path:String,
 			config:FlatBuffersGeneratorOpts = load("uid://b8vn3e2cuhqy3")
 			) -> Dictionary:
@@ -317,26 +338,26 @@ static func is_fbs_in_path_list(path_list:PackedStringArray) -> bool:
 ## FileSystem Dock Context Menu.
 ## EditorContextMenuPlugin.ContextMenuSlot.CONTEXT_SLOT_FILESYSTEM
 class FSDockCM extends EditorContextMenuPlugin:
-	
+
 	func _init() -> void:
 		Print.plog( LogLevel.TRACE, "FSDockCM._init()" )
-	
+
 	# _popup_menu() and option callback will be called with list of paths of the
 	# currently selected files.
 	func _popup_menu(paths:PackedStringArray) -> void:
 		# Verify we have a fbs to call the menu on.
 		if not FlatBuffersPlugin.is_fbs_in_path_list(paths): return
-		
+
 		# Get the list of flatc configs
-		
+
 		var fbp := FlatBuffersPlugin._prime
 		var config_list:Array[FlatBuffersGeneratorOpts] = fbp.opts.config_list
 		var from_settings:Variant = ProjectSettings.get_setting('flatbuffers/GeneratorConfigs/config_list')
 		if from_settings: config_list = from_settings
 		if config_list.is_empty(): config_list.append(load("uid://b8vn3e2cuhqy3"))
-		
+
 		for config in config_list:
-			var item_name:String = "FlatBuffers Generate: %s" % [config.name] 
+			var item_name:String = "FlatBuffers Generate: %s" % [config.name]
 			add_context_menu_item(item_name, fbp.flatc_multi.bind(config), ICON_BW_TINY  )
 		# TODO when configs grow past three, add a submenu.
 
@@ -345,10 +366,10 @@ class FSDockCM extends EditorContextMenuPlugin:
 ## The "Create..." submenu of FileSystem dock's context menu.
 ## CONTEXT_SLOT_FILESYSTEM_CREATE
 class FSCreateCM extends EditorContextMenuPlugin:
-	
+
 	func _init() -> void:
 		Print.plog( LogLevel.TRACE, "FSCreateCM._init()" )
-	
+
 	# _popup_menu() and option callback will be called with list of paths of the
 	# currently selected files.
 	# TODO, use this menu to enable generating a flatbuffer schema by loading
@@ -365,16 +386,16 @@ class FSCreateCM extends EditorContextMenuPlugin:
 ## Context menu of Script editor's script tabs.
 ## CONTEXT_SLOT_SCRIPT_EDITOR
 class ScriptEditTabCM extends EditorContextMenuPlugin:
-	
+
 	func _init() -> void:
 		Print.plog( LogLevel.TRACE, "ScriptEditTabCM._init()" )
-		
+
 	# _popup_menu() will be called with the path to the currently edited script,
 	# while option callback will receive reference to that script.
 	func _popup_menu(paths:PackedStringArray) -> void:
 		# Verify we have a fbs to call the menu on.
 		if not FlatBuffersPlugin.is_fbs_in_path_list(paths): return
-		
+
 		var _fbp := FlatBuffersPlugin._prime
 		#if paths[0].get_extension() == 'fbs':
 			#add_context_menu_item("flatc --gdscript", call_flatc_on_path.bind(

@@ -99,7 +99,7 @@ enum UsageFlags {
 
 
 static var _opts:FlatBuffersOpts:
-	get(): 
+	get():
 		if FlatBuffersPlugin._prime:
 			var opts := FlatBuffersPlugin._prime.opts
 			if opts: _opts = opts
@@ -131,6 +131,11 @@ static func get_usage_flags( bits:PackedByteArray ) -> PackedStringArray:
 			if not result.push_back(value): break
 	return result
 
+
+static func get_call_site(depth:int = 1) -> String:
+	var stack:Array = get_stack()
+	var frame:Dictionary = stack[mini(stack.size(), depth)]
+	return "[url='{source}:{line}']{source}:{line}:{function}()[/url]".format(frame)
 
 
 static func ptrace() -> void:

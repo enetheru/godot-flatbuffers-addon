@@ -129,7 +129,7 @@ func                        __Code_Generation_Opts___              ()->void:pass
 
 @export_category("Code Generation Options")
 
-@export_custom(PROPERTY_HINT_ENUM, "gdscript, csharp, cpp, json, bfbs")
+@export_custom(PROPERTY_HINT_ENUM, "gdscript,csharp,cpp,json,bfbs")
 var lang:String = 'gdscript'
 
 @export
@@ -266,7 +266,7 @@ func get_opts() -> PackedStringArray:
 		args.append_array(["--filename-suffix", filename_suffix])
 
 	## --- Code Generation Options ----------
-	
+
 	args.append('--%s' % lang)
 
 	## Which Language to generate
@@ -293,7 +293,7 @@ func get_opts() -> PackedStringArray:
 
 func get_include_paths() -> Array:
 	var paths:Array = include_paths.duplicate()
-	
+
 	## always include the project root
 	paths.append("res://")
 
