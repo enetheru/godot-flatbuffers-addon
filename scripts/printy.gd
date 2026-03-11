@@ -132,12 +132,24 @@ static func get_usage_flags( bits:PackedByteArray ) -> PackedStringArray:
 	return result
 
 
+## returns a bbcode string url to the source location at [param depth].
 static func get_call_site(depth:int = 1) -> String:
 	var stack:Array = get_stack()
 	var frame:Dictionary = stack[mini(stack.size(), depth)]
 	return "[url='{source}:{line}']{source}:{line}:{function}()[/url]".format(frame)
 
 
+## Sparse/Simple print to the output console
+## if [enum LogLevel] >= [constant LogLevel.TRACE]
+static func slog( level:LogLevel, ...message:Array ) -> void:
+	if _verbosity < level: return
+	var colour:String = _opts.get_colour(level).to_html()
+	print_rich( "[color=%s]%s[/color]" % [colour, ' '.join(message)] )
+
+
+## Print to the output console padding + the current source loation
+## if [enum LogLevel] >= [constant LogLevel.TRACE], where padding is set by
+## the size of the GDScript stack.
 static func ptrace() -> void:
 	if _verbosity < LogLevel.TRACE: return
 	var colour:String = _opts .get_colour(LogLevel.TRACE).to_html()
@@ -146,6 +158,8 @@ static func ptrace() -> void:
 	print_rich( "[color=%s]%s[/color]" % [colour, line] )
 
 
+## Print to the output console padding + [param message], where padding is set by
+## the size of the GDScript stack.
 static func plog( level:LogLevel, ...message:Array ) -> void:
 	if _verbosity < level: return
 	var colour:String = _opts.get_colour(level).to_html()
@@ -153,6 +167,7 @@ static func plog( level:LogLevel, ...message:Array ) -> void:
 	print_rich( padding + "[color=%s]%s[/color]" % [colour, ' '.join(message)] )
 
 
+## The same as plog, returning the result of the level check.
 static func plog_check( level:LogLevel, ...message:Array ) -> bool:
 	if _verbosity < level: return false
 	plog(level, message)

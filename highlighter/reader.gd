@@ -1,8 +1,16 @@
+@tool
+
 const Parser = preload("uid://dsj2eh2lfm2sg")
 const Token = preload('uid://cvcd6kyaa4f1a')
 const RegExList = preload('uid://btk3lhtry00ct')
 
-static var regex_list := RegExList.new()
+
+static var regex_list:RegExList :
+	get():
+		if not is_instance_valid(regex_list):
+			regex_list = RegExList.new()
+		return regex_list
+
 
 # Highlight for debugging.
 func print_bright( _value:String ) -> void:
@@ -74,11 +82,8 @@ var line_start:int
 ## determines if the end of the ext block is an EOL or an EOF
 var whole_file:bool = false
 
-
 func _init( parser_ref:Parser ) -> void:
-	if parser_ref:
-		parser = parser_ref
-	if not regex_list: regex_list = RegExList.new()
+	if parser_ref: parser = parser_ref
 
 
 func _to_string() -> String:
@@ -191,7 +196,7 @@ func peek_token() -> Token:
 	while true:
 		adv_whitespace()
 		# end of file
-		
+
 		p_token = Token.new(line_n, cursor_lp, Token.Type.EOF if whole_file else Token.Type.EOL, peek_char() )
 		if at_end(): break
 
@@ -322,7 +327,7 @@ func is_ident( word:String ) -> bool:
 	return false
 
 
-#scalar = boolean_constant | integer_constant | float_constant
+##scalar = boolean_constant | integer_constant | float_constant
 func is_scalar( word:String ) -> bool:
 	return is_boolean( word ) or is_integer( word ) or is_float( word )
 
@@ -331,13 +336,13 @@ func is_boolean( word:String ) -> bool:
 	return word in ['true', 'false']
 
 
-# integer_constant = dec_integer_constant | hex_integer_constant
+## integer_constant = dec_integer_constant | hex_integer_constant
 func is_integer( word:String ) -> bool:
 	return (regex_list.dec_integer_constant.search(word)
 		or regex_list.hex_integer_constant.search(word))
 
 
-#float_constant = dec_float_constant | hex_float_constant | special_float_constant
+## float_constant = dec_float_constant | hex_float_constant | special_float_constant
 func is_float( word:String ) -> bool:
 	return (regex_list.dec_float_constant.search( word )
 		or regex_list.hex_float_constant.search( word )

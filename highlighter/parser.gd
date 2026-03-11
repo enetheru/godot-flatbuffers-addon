@@ -19,7 +19,7 @@ const Print = preload("uid://cbluyr4ifn8g3")
 const LogLevel = Print.LogLevel
 
 static var _opts:FlatBuffersOpts:
-	get(): 
+	get():
 		if FlatBuffersPlugin._prime:
 			var opts := FlatBuffersPlugin._prime.opts
 			if opts: _opts = opts
@@ -155,7 +155,7 @@ func _init(plugin_ref: FlatBuffersPlugin = null) -> void:
 
 	var err:int =  new_index_chunk.resize(10)
 	if err != OK: Print.plog(LogLevel.ERROR, error_string(err))
-		
+
 	new_index_chunk.fill(false)
 
 	scalar_types = integer_types + float_types + boolean_types
@@ -165,7 +165,7 @@ func _init(plugin_ref: FlatBuffersPlugin = null) -> void:
 	err = reader.new_token.connect(highlight)
 	if err != OK: Print.plog(LogLevel.ERROR, error_string(err))
 
-	err = reader.newline.connect( 
+	err = reader.newline.connect(
 		func(l:int,_p:int) -> void:
 			if error_flag: return
 			save_stack(l, 0))
@@ -229,7 +229,7 @@ func check_include_file(file_path: String) -> String:
 
 	var main_config:FlatBuffersGeneratorOpts = ProjectSettings.get_setting('flatbuffers/GeneratorConfigs/main', null)
 	if main_config == null: return ""
-	
+
 	var include_paths:Array = main_config.get_include_paths()
 	Print.plog( LogLevel.TRACE, "Searching Locations: %s" % [include_paths])
 	for ipath: String in include_paths:
@@ -299,8 +299,10 @@ func get_prev_stack(line_num: int) -> FrameStack:
 		if stack_index.size() > i and stack_index[i]:
 			prev_idx = i
 			var saved:FrameStack = stack_list.get(i)
-			if saved:
-				return saved.duplicate()  # return a copy to avoid mutation issues
+			if not saved: continue
+			Print.plog(LogLevel.DEBUG,
+					"restoring stack from line", i+1, saved.top())
+			return saved.duplicate()  # return a copy to avoid mutation issues
 	# No previous state → fresh stack
 	return FrameStack.new(20)
 
@@ -366,11 +368,9 @@ func                        __________FRAMES_________              ()->void:pass
 ## start_frame() runs the appropriate stack frame function
 func start_frame( frame:StackFrame, token:Token ) -> void:
 	if Print.lvl( LogLevel.TRACE ):
-		var msg:Array = [
-			"" if frame.data.is_empty() else "⮱Resume:",
-			frame,
-			JSON.stringify( token ) ]
-		Print.plog( LogLevel.TRACE, lpad() + " ".join(msg) )
+		var resume:String = "" if frame.data.is_empty() else "--- Continue ---\n" #⮱
+		Print.slog( LogLevel.TRACE, resume + lpad() + str(frame))
+		Print.slog( LogLevel.TRACE, lpad(1) + str(token))
 	_dispatch(frame, token)
 
 
@@ -398,14 +398,14 @@ func                       ________QUICK_SCAN_______               ()->void:pass
 
 func quick_scan(full_text: String) -> void:
 	Print.plog( LogLevel.TRACE, "quick_scan()")
-	
+
 	if is_quick_scan_in_progress:
 		Print.plog( LogLevel.WARNING, "QuickScanText: already in progress — skipping nested call")
 		return
 	is_quick_scan_in_progress = true
 
 	quick_scan_text(full_text)
-	
+
 	while scan_pending.size() > 0:
 		var file_path:String = scan_pending.pop_front()
 		Print.plog( LogLevel.DEBUG, "Scanning: '%s'" % file_path)
@@ -654,7 +654,7 @@ func parse_schema( p_token:Token ) -> void:
 	var frame:StackFrame = stack.top()
 
 	if p_token.is_eol(): return
-	
+
 	if is_comment(p_token):
 		return
 
@@ -879,14 +879,14 @@ func parse_enum_decl( p_token:Token ) -> void:
 		else:
 			reader.adv_line()
 			error_frame(token, "IDENT Required")
-			return 
-			
+			return
+
 		# :type is mandatory
 		token = reader.get_token() # fetch and consume ':'
 		if check_token_t(token, &':'):
 			stack.push( StackFrame.new( FrameType.TYPE, { &"decl_type":decl_type } ) )
 			return
-		
+
 		reader.adv_line()
 		error_frame(token, "enum type is required")
 		return
@@ -898,11 +898,11 @@ func parse_enum_decl( p_token:Token ) -> void:
 		want_token_type(p_token, Token.Type.PUNCT)
 		match p_token.t:
 			# meta
-			&'(' when allow & Allow.PAREN: 
+			&'(' when allow & Allow.PAREN:
 				frame.data[&'allow'] = allow & ~(Allow.COLON | Allow.PAREN)
 				stack.push(StackFrame.new( FrameType.METADATA ) )
 				return
-			
+
 			# enum_val begin
 			&'{':
 				var _token:Token = reader.get_token() # consume '{'
@@ -911,7 +911,7 @@ func parse_enum_decl( p_token:Token ) -> void:
 			_:
 				error_frame(p_token, "Unexpected Token")
 				return
-				
+
 
 	if frame.data.get(&'next') == &'enumval_decl':
 		# separator, allow for trailing read before closing brace
@@ -919,19 +919,19 @@ func parse_enum_decl( p_token:Token ) -> void:
 			frame.data[&'allow'] = allow & ~Allow.COMMA
 			reader.adv_token(p_token) # Consume the ','
 			p_token = reader.peek_token()
-		
+
 		# closing brace
 		if p_token.t == &"}":
 			reader.adv_token(p_token) # Consume the '}'
 			return end_frame()
-		
+
 		# Newlines are ok between enumvals
 		if p_token.is_eol():
 			return reader.adv_token(p_token)
-		
+
 		if is_comment(p_token):
-			return 
-		
+			return
+
 		# enumval_decl
 		if check_token_type( p_token, Token.Type.IDENT ):
 			frame.data[&'allow'] = allow | Allow.COMMA
@@ -950,10 +950,10 @@ func parse_enum_decl( p_token:Token ) -> void:
 
 
 #MARK: Union Decl
-# │ _   _      _            ___         _   
-# │| | | |_ _ (_)___ _ _   |   \ ___ __| |  
-# │| |_| | ' \| / _ \ ' \  | |) / -_) _| |  
-# │ \___/|_||_|_\___/_||_| |___/\___\__|_|  
+# │ _   _      _            ___         _
+# │| | | |_ _ (_)___ _ _   |   \ ___ __| |
+# │| |_| | ' \| / _ \ ' \  | |) / -_) _| |
+# │ \___/|_||_|_\___/_||_| |___/\___\__|_|
 # ╰─────────────────────────────────────────
 #region Enum Decl
 func parse_union_decl( p_token:Token ) -> void:
@@ -1046,7 +1046,7 @@ func parse_field_decl( p_token:Token ) -> void:
 	# field_decl can start on a newline, so this function is called
 	# even on empty lines.
 	if p_token.is_eol(): return
-	
+
 	if is_comment(p_token): return
 
 	var decl_type:StringName = frame.bindings.get(&"decl_type", StringName())
@@ -1269,15 +1269,15 @@ func parse_enumval_decl( p_token:Token ) -> void:
 
 
 #MARK: Union value Declaration
-# │ _   _      _                  _   ___         _   
-# │| | | |_ _ (_)___ _ ___ ____ _| | |   \ ___ __| |  
-# │| |_| | ' \| / _ \ ' \ V / _` | | | |) / -_) _| |  
-# │ \___/|_||_|_\___/_||_\_/\__,_|_| |___/\___\__|_|  
+# │ _   _      _                  _   ___         _
+# │| | | |_ _ (_)___ _ ___ ____ _| | |   \ ___ __| |
+# │| |_| | ' \| / _ \ ' \ V / _` | | | |) / -_) _| |
+# │ \___/|_||_|_\___/_||_\_/\__,_|_| |___/\___\__|_|
 # ╰───────────────────────────────────────────────────
 #region Unionvan Decl
 func parse_unionval_decl( p_token:Token ) -> void:
 	# UNIONVAL_DECL = ident [ : ident ]
-	
+
 	# Union Member
 	var token:Token = reader.get_token()
 	# TODO test that the union member exists
@@ -1318,7 +1318,7 @@ func parse_metadata( p_token:Token ) -> void:
 
 		if token.t == &")": return end_frame()
 		want_token_type(token, Token.Type.IDENT )
-		
+
 		# Here is where we need to do the checking for attributes
 		# Additional checks can be run per attribute using the stack
 		# for additional info.
