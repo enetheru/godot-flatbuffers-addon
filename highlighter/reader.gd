@@ -5,7 +5,7 @@ const Token = preload('uid://cvcd6kyaa4f1a')
 const RegExList = preload('uid://btk3lhtry00ct')
 
 
-static var regex_list:RegExList :
+var regex_list:RegExList :
 	get():
 		if not is_instance_valid(regex_list):
 			regex_list = RegExList.new()

@@ -4,18 +4,18 @@
 # ██   ██ ██      ██    ██ ██       ██ ██
 # ██   ██ ███████  ██████  ███████ ██   ██
 
-static var string_constant : RegEx
-static var ident : RegEx
-static var digit : RegEx
-static var xdigit : RegEx
-static var dec_integer_constant : RegEx
-static var hex_integer_constant : RegEx
-static var dec_float_constant : RegEx
-static var hex_float_constant : RegEx
-static var special_float_constant : RegEx
-static var boolean_constant : RegEx
+var string_constant : RegEx
+var ident : RegEx
+var digit : RegEx
+var xdigit : RegEx
+var dec_integer_constant : RegEx
+var hex_integer_constant : RegEx
+var dec_float_constant : RegEx
+var hex_float_constant : RegEx
+var special_float_constant : RegEx
+var boolean_constant : RegEx
 
-static var patterns : Dictionary = {}
+var patterns : Dictionary = {}
 
 func _init() -> void:
 	## STRING_CONSTANT = \".*?\\"
