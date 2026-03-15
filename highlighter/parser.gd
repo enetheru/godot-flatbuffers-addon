@@ -261,10 +261,14 @@ func highlight_colour(token: Token, colour:Color) -> void:
 
 
 func syntax_warning(token: Token, reason: String = "") -> void:
+	var colour:String = _opts.get_colour(LogLevel.WARNING).to_html()
+	Print.slog(LogLevel.TRACE, "[color=%s]%s[/color]" % [colour, Print.get_call_site(3)]  )
 	active_highlighter.syntax_warning(token, reason)
 
 
 func syntax_error(token: Token, reason: String = "") -> void:
+	var colour:String = _opts.get_colour(LogLevel.ERROR).to_html()
+	Print.slog(LogLevel.TRACE, "[color=%s]%s[/color]" % [colour, Print.get_call_site(3)]  )
 	active_highlighter.syntax_error(token, reason)
 
 
@@ -996,6 +1000,8 @@ func parse_union_decl( p_token:Token ) -> void:
 		if p_token.t == &',':
 			reader.adv_token(p_token) # Consume the ','
 			p_token = reader.peek_token()
+
+		if p_token.is_eol():return
 
 		if check_token_type( p_token, Token.Type.IDENT ):
 			stack.push( StackFrame.new( FrameType.UNIONVAL_DECL ) )
