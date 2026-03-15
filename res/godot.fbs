@@ -1,3 +1,5 @@
+
+
 //// math types
 //VECTOR2,
 struct Vector2 {
@@ -88,23 +90,71 @@ struct Color{
 	b:float;
 	a:float;
 }
+
 //STRING_NAME,  aka string
-//NODE_PATH,    aka string
-//RID,
+
+//NODE_PATH,    based on the docs its not a straight forward string.
+
+//RID, not supported
 //OBJECT,
 //CALLABLE,
 //SIGNAL,
+
 //DICTIONARY,
-//ARRAY,
+
+
+union Variant {
+	// Nil, FlatBuffers unions automatically add the zero element to indicate null.
+	// bool,
+	// int,
+	// float,
+	// String,
+	Vector2,
+	Vector2i,
+	Rect2,
+	Rect2i,
+	Vector3,
+	Vector3i,
+	Transform2D,
+	Vector4,
+	Vector4i,
+	Plane,
+	Quaternion,
+	AABB,
+	Basis,
+	Transform3D,
+	Projection,
+	Color,
+	// StringName,
+	// NodePath,
+	// Rid,
+	// Object,
+	// Callable,
+	// Signal,
+	// Dictionary,
+	// Array,
+	// PackedByteArray,
+	// PackedInt32Array,
+	// PackedInt64Array,
+	// PackedFloat32Array,
+	// PackedFloat64Array,
+	// PackedStringArray,
+	// PackedVector2Array,
+	// PackedVector3Array,
+	// PackedColorArray,
+	// PackedVector4Array,
+}
+
+//ARRAY,               [Variant]
 
 //// typed arrays
-//PACKED_BYTE_ARRAY,
-//PACKED_INT32_ARRAY,
-//PACKED_INT64_ARRAY,
-//PACKED_FLOAT32_ARRAY,
-//PACKED_FLOAT64_ARRAY,
-//PACKED_STRING_ARRAY,
-//PACKED_VECTOR2_ARRAY,
-//PACKED_VECTOR3_ARRAY,
-//PACKED_COLOR_ARRAY,
-//PACKED_VECTOR4_ARRAY,
+//PACKED_BYTE_ARRAY,   [uint8]
+//PACKED_INT32_ARRAY,  [uint32]
+//PACKED_INT64_ARRAY,  [uint64]
+//PACKED_FLOAT32_ARRAY,[float]
+//PACKED_FLOAT64_ARRAY,[double]
+//PACKED_STRING_ARRAY, [string]
+//PACKED_VECTOR2_ARRAY,[Vector2]
+//PACKED_VECTOR3_ARRAY,[Vector3]
+//PACKED_COLOR_ARRAY,  [Color]
+//PACKED_VECTOR4_ARRAY,[Vector4]
