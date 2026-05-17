@@ -2,8 +2,6 @@
 class_name FlatBuffersPlugin
 extends EditorPlugin
 
-func                        _________IMPORTS_________              ()->void:pass
-
 const Print = preload("uid://cbluyr4ifn8g3")
 const LogLevel = Print.LogLevel
 

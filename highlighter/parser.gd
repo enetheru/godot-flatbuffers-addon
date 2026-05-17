@@ -6,8 +6,6 @@
 # ╰───────────────────────────
 # A FlatBuffer schema file(fbs) parser
 
-func                        _________IMPORTS_________              ()->void:pass
-
 const Reader = preload('uid://cupdfm2aikswa')
 const Token = preload('uid://cvcd6kyaa4f1a')
 const FrameStack = preload('uid://d3cyn1bbenwmo')

@@ -6,5 +6,5 @@
 resource_name = "Default Flatc Generator Opts"
 script = ExtResource("1_1037i")
 name = "Default Options"
-flatc_exe = "C:/Godot/Projects/Enetheru.flatbuffers-project/addons/enetheru.flatbuffers-extension/bin/flatc.exe"
+flatc_exe = "C:/Godot/Projects/Enetheru.flatbuffers-project/addons/enetheru.flatbuffers-extension/bin/flatc.debug.exe"
 metadata/_custom_type_script = "uid://bf5ukybn2h3kd"

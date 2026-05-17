@@ -1,5 +1,12 @@
-Godot Flatbuffers
-=================
+# Godot Flatbuffers Addon
+This is for Godot editor support of the [godot-flatbuffers](https://github.com/enetheru/godot-flatbuffers) extension.
+
+It's primary purpose is to try to smooth out the experience of using flatbuffers in a godot project.
+
+The primary features:
+- Syntax Highlighting
+- Context menu's
+
 Serialise to, and from, flatbuffer objects.
 
 This is a work in progress, and I would appreciate any and all feedback relating to it.

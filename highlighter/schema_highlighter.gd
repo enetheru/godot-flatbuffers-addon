@@ -19,8 +19,6 @@ extends EditorSyntaxHighlighter
 ## Debounce highlight actions, though its not expensive, i havent really run
 ## into trouble with it yet.
 
-
-func                        _________IMPORTS_________              ()->void:pass
 const Print = preload("uid://cbluyr4ifn8g3")
 const LogLevel = Print.LogLevel
 
