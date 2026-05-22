@@ -108,8 +108,6 @@ func _enter_tree() -> void:
 		Print.plog( LogLevel.TRACE, "Adding fbs to EditorSetting: docks/filesystem/textfile_extensions" )
 		ext_list.append('fbs')
 		editor_settings.set_setting(setting_string, ','.join(ext_list))
-		# Force filesystem scan to refresh the dock
-		EditorInterface.get_resource_filesystem().scan()
 		Print.plog( LogLevel.NOTICE, ' '.join(["[b]FlatBuffersAddon.Note[/b]:",
 			"the 'fbs' extension has been added to EditorSettings:",
 			"`docks/filesystem/textfile_extensions`",
