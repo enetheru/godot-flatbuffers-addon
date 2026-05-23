@@ -49,7 +49,7 @@ ie.
 
 ```flatbuffers
 table MyObject {
-    var_name:int32;
+	var_name:int32;
 }
 
 root_type MyObject;
@@ -164,8 +164,8 @@ thats how the FlatBuffers schema is defined so I have to roll with that.
 So when generating code...
 ```flatbuffers
 table TableName {
-    first:[byte];
-    second:[ubyte];
+	first:[byte];
+	second:[ubyte];
 }
 ```
 
@@ -175,11 +175,11 @@ the underlying packed byte array and return it as is, making it the more efficie
 Here is the mapping:
 ```flatbuffers
 table mapping {
-    f2:[uint8];     //[ubyte|uint8]     PackedByteArray
-    f3:[int32];     //[int|int32]       PackedInt32Array
-    f4:[int64];     //[long|int64]      PackedInt64Array
-    f5:[float32];   //[float|float32]   PackedFloat32Array
-    f6:[float64];   //[double|float64]  PackedFloat64Array
+	f2:[uint8];     //[ubyte|uint8]     PackedByteArray
+	f3:[int32];     //[int|int32]       PackedInt32Array
+	f4:[int64];     //[long|int64]      PackedInt64Array
+	f5:[float32];   //[float|float32]   PackedFloat32Array
+	f6:[float64];   //[double|float64]  PackedFloat64Array
 }
 ```
 The remaining integer types (`[byte|int8|short|ushort|int16|uint16|uint|uint32|ulong|uint64]`) need to be decoded from the underlying bytes and so they all return Array, and it's best to
@@ -218,3 +218,7 @@ message, or private message me. I am very responsive.
 ### Alternative Projects
 * https://github.com/V-Sekai-archive/godot-flatbuffers
 * https://gitlab.com/JudGenie/flatbuffersgdscript
+
+
+### TODO
+- [ ] fix the use of literal true and false for bool default value.
