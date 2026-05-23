@@ -42,8 +42,8 @@ var editorlog_verbosity:int = 0
 # │| __ | / _` | ' \  _| | / _` | ' \  _|
 # │|_||_|_\__, |_||_\__|_|_\__, |_||_\__|
 # ╰───────|___/────────────|___/──────────
-# FIXME what are these options for? 
- 
+# FIXME what are these options for?
+
 @export
 var highlight_error:bool = true
 

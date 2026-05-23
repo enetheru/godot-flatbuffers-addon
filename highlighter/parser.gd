@@ -950,7 +950,6 @@ func parse_enum_decl( p_token:Token ) -> void:
 #endregion Enum Decl
 
 
-
 #MARK: Union Decl
 # │ _   _      _            ___         _
 # │| | | |_ _ (_)___ _ _   |   \ ___ __| |

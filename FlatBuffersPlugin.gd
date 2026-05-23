@@ -358,7 +358,6 @@ class FSDockCM extends EditorContextMenuPlugin:
 		# TODO when configs grow past three, add a submenu.
 
 
-
 ## The "Create..." submenu of FileSystem dock's context menu.
 ## CONTEXT_SLOT_FILESYSTEM_CREATE
 class FSCreateCM extends EditorContextMenuPlugin:
@@ -376,7 +375,6 @@ class FSCreateCM extends EditorContextMenuPlugin:
 			add_context_menu_item("create_flatbuffer_schema_from_object",
 				func(thing:Array) -> void: print( thing ),
 				ICON_BW_TINY )
-
 
 
 ## Context menu of Script editor's script tabs.
