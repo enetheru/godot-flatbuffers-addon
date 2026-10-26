@@ -115,23 +115,9 @@ func _enter_tree() -> void:
 	add_context_menu_plugin( cm_slot, cm_plugin )
 	context_menus[cm_slot] = cm_plugin
 
-	# Fix up the text file extensions list.
-	var editor_settings := EditorInterface.get_editor_settings()
-	var setting_string:String = "docks/filesystem/textfile_extensions"
-	var textfile_extensions:String = editor_settings.get_setting(setting_string)
-	var ext_list:Array = textfile_extensions.split(",")
-	if not 'fbs' in ext_list:
-		Log.lvl( Log.Level.TRACE, "Adding fbs to EditorSetting: docks/filesystem/textfile_extensions")
-		ext_list.append('fbs')
-		editor_settings.set_setting(setting_string, ','.join(ext_list))
-		Log.lvl( Log.Level.NOTICE, ' '.join(["[b]FlatBuffersAddon.Note[/b]:",
-			"the 'fbs' extension has been added to EditorSettings:",
-			"`docks/filesystem/textfile_extensions`",
-			"I have noticed that while the",
-			"fbs files do show up after this change, editing them brings up a",
-			"resource error rather than opening the editor. The only way I've",
-			"Found so far to resolve this is to manually change the EditorSetting",
-			"to trigger the editor to perform whatever it needs."]))
+	# Read EditorSettings. Leave the values alone. A write here hangs editor
+	# open. The lock order is Notes/EditorSettings.md in the extension repo.
+	# Add fbs by hand under docks/filesystem/textfile_extensions.
 
 	if opts.experimental:
 		enable_experimental_features()
@@ -161,18 +147,6 @@ func _exit_tree() -> void:
 		remove_context_menu_plugin( menu )
 
 	EditorInterface.get_script_editor().unregister_syntax_highlighter( highlighter )
-
-	# Fix up the text file extensions list.
-	var editor_settings := EditorInterface.get_editor_settings()
-	var setting_string:String = "docks/filesystem/textfile_extensions"
-	var textfile_extensions:String = editor_settings.get_setting(setting_string)
-	var ext_list:Array = textfile_extensions.split(",")
-	if 'fbs' in ext_list:
-		Log.lvl( Log.Level.TRACE, "Removing fbs from EditorSetting: docks/filesystem/textfile_extensions")
-		ext_list.erase('fbs')
-		editor_settings.set_setting(setting_string, ','.join(ext_list))
-		# Force filesystem scan to refresh the dock
-		EditorInterface.get_resource_filesystem().scan()
 
 
 func _get_plugin_name() -> String:

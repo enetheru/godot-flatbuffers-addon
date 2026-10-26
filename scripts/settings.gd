@@ -6,6 +6,8 @@
 ## │|___/\___|\__|\__|_|_||_\__, /__/ |_||_\___|_| .__/\___|_|     [br]
 ## ╰────────────────────────|___/────────────────|_|────────────── [br]
 ## Bridge `@export` properties on a target object into [ProjectSettings].
+## Plugin code leaves [EditorSettings] values alone. A write hangs the editor.
+## See Notes/EditorSettings.md in the extension repo.
 ##
 ## Walks [method Object.get_property_list], maps [code]PROPERTY_USAGE_*[/code]
 ## groups, and keeps the target in sync when ProjectSettings change.[br]

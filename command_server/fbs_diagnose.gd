@@ -7,7 +7,8 @@ extends CommandServerTool
 ## so the issues belong to this pass. ScriptEditor.open_file() is not bound to
 ## GDScript. The FileSystem dock's item_activated handler is the path EditorNode
 ## uses for text files, including .fbs once it is in
-## docks/filesystem/textfile_extensions.
+## docks/filesystem/textfile_extensions. The plugin leaves that setting
+## alone. Writing it hangs the editor. See Notes/EditorSettings.md.
 ##
 ## Highlighting parses a line when Godot draws it. The new tab is read after
 ## the next paint.
